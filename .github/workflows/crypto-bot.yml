@@ -1,0 +1,43 @@
+  name: Crypto Trading Bot
+
+  on:
+    schedule:
+      # Her 40 dakikada bir çalış (cron: dakika saat gün ay haftanın_günü)
+      - cron: '*/40 * * * *'
+    workflow_dispatch: # Manuel olarak da çalıştırılabilir
+
+  jobs:
+    run-crypto-bot:
+      runs-on: ubuntu-latest
+
+      steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run crypto trading bot
+        env:
+          TELEGRAM_BOT_TOKEN: 8036527191:AAEGeUZHDb4AMLICFGmGl6OdrN4hrSaUpoQ
+          TELEGRAM_CHAT_ID: 1119272011
+        run: |
+          python trading_bot.py
+
+      - name: Upload logs (if any)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bot-logs-${{ github.run_number }}
+          path: |
+            *.log
+            scan_results.json
+          retention-days: 7
+          if-no-files-found: ignore
+
