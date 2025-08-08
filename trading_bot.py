@@ -21,7 +21,7 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler('crypto_bot.log'),
-        logging.StreamHandler(sys.stdout)
+        logging.StreamHandler(sys.stdout)@
     ]
 )
 logger = logging.getLogger(__name__)
@@ -92,8 +92,21 @@ class CryptoBotGitHub:
             # Binance exchangeInfo - 24hr ticker ile kombinasyon
             logger.info("🔍 Binance'den coin listesi alınıyor...")
             
-            # 1. Aktif trading çiftleri al
-            response = requests.get("https://api.binance.com/api/v3/exchangeInfo", timeout=20)
+            # Headers - Bot detection bypass
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'application/json',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Connection': 'keep-alive',
+                'Sec-Fetch-Dest': 'empty',
+                'Sec-Fetch-Mode': 'cors',
+                'Sec-Fetch-Site': 'cross-site'
+            }
+            
+            # 1. Aktif trading çiftleri al - headers ile
+            response = requests.get("https://api.binance.com/api/v3/exchangeInfo", 
+                                  headers=headers, timeout=30)
             response.raise_for_status()
             exchange_data = response.json()
             
@@ -107,7 +120,8 @@ class CryptoBotGitHub:
             
             # 2. 24hr volume verisi al - sıralama için
             logger.info("📊 Volume verileri alınıyor...")
-            response = requests.get("https://api.binance.com/api/v3/ticker/24hr", timeout=20)
+            response = requests.get("https://api.binance.com/api/v3/ticker/24hr", 
+                                  headers=headers, timeout=30)
             response.raise_for_status()
             volume_data = response.json()
             
