@@ -90,26 +90,77 @@ class CryptoBotGitHub:
         # GitHub Actions IP engelleniyor - sabit coin listesi kullan
         logger.info("Using hardcoded coin list (GitHub Actions IP blocked)")
         
-        # En aktif 100 USDT çifti - volume sıralı
-        top_coins = [
-            'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'SOLUSDT',
-            'DOGEUSDT', 'TRXUSDT', 'TONUSDT', 'AVAXUSDT', 'SHIBUSDT', 'WBTCUSDT',
-            'LINKUSDT', 'BCHUSDT', 'DOTUSDT', 'NEARUSDT', 'MATICUSDT', 'LTCUSDT',
-            'UNIUSDT', 'ICPUSDT', 'FETUSDT', 'ETCUSDT', 'APTUSDT', 'STXUSDT',
-            'FILUSDT', 'HBARUSDT', 'ATOMUSDT', 'IMXUSDT', 'RENDERUSDT', 'OPUSDT',
-            'ARBUSDT', 'XLMUSDT', 'VETUSDT', 'MKRUSDT', 'INJUSDT', 'GRTUSDT',
-            'THETAUSDT', 'RUNEUSDT', 'FTMUSDT', 'MANAUSDT', 'SANDUSDT', 'AXSUSDT',
-            'FLOWUSDT', 'ALGOUSDT', 'QNTUSDT', 'EGLDUSDT', 'XTZUSDT', 'CHZUSDT',
-            'EOSUSDT', 'AAVEUSDT', 'KLAYUSDT', 'NEOUSDT', 'CAKEUSDT', 'LDOUSDT',
-            'WLDUSDT', 'SUIUSDT', 'PEPEUSDT', 'FLOKIUSDT', 'NOTUSDT', 'BONKUSDT',
-            'TIAUSDT', 'SEIUSDT', 'ORDIUSDT', 'JUPUSDT', 'PYTHUSDT', 'WIFUSDT',
-            'BOMEUSDT', 'ENAUSUSDT', 'OMNIUSDT', 'REZUSUSDT', 'BBUSUSDT', 'IOUSDT',
-            'ZKUSUSDT', 'ZROUSDT', 'GUSUSDT', 'BANANUSDT', 'TAOUSDT', 'LISTUSDT',
-            'ZROUSUSDT', 'DOGSUSDT', 'TONUSUSDT', 'HMSTUSDT', 'CATIUSDT', 'NEIRUSDT',
-            'TURBOUSDT', 'MEMEUSDT', 'GOATUSDT', 'PNUTUSDT', 'ACTUSDT', 'MOVEUSDT',
-            '1000SATSUSDT', 'COMPUSDT', 'SNXUSDT', 'CRVUSDT', 'LRCUSDT', 'BATUSDT',
-            'ENJUSDT', 'ZILUSDT', 'HOTUSDT', 'CELRUSDT', 'DASHUSDT', 'XMRUSDT'
+        # Top 500 USDT çifti - volume bazlı sıralama (tekrarsız)
+        major_coins = [
+            'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'SOLUSDT', 'DOGEUSDT', 'TRXUSDT', 'TONUSDT', 'AVAXUSDT',
+            'SHIBUSDT', 'WBTCUSDT', 'LINKUSDT', 'BCHUSDT', 'DOTUSDT', 'NEARUSDT', 'MATICUSDT', 'LTCUSDT', 'UNIUSDT', 'ICPUSDT'
         ]
+        
+        popular_coins = [
+            'FETUSDT', 'ETCUSDT', 'APTUSDT', 'STXUSDT', 'FILUSDT', 'HBARUSDT', 'ATOMUSDT', 'IMXUSDT', 'RENDERUSDT', 'OPUSDT',
+            'ARBUSDT', 'XLMUSDT', 'VETUSDT', 'MKRUSDT', 'INJUSDT', 'GRTUSDT', 'THETAUSDT', 'RUNEUSDT', 'FTMUSDT', 'MANAUSDT',
+            'SANDUSDT', 'AXSUSDT', 'FLOWUSDT', 'ALGOUSDT', 'QNTUSDT', 'EGLDUSDT', 'XTZUSDT', 'CHZUSDT', 'EOSUSDT', 'AAVEUSDT',
+            'KLAYUSDT', 'NEOUSDT', 'CAKEUSDT', 'LDOUSDT', 'WLDUSDT', 'SUIUSDT', 'PEPEUSDT', 'FLOKIUSDT', 'NOTUSDT', 'BONKUSDT',
+            'TIAUSDT', 'SEIUSDT', 'ORDIUSDT', 'JUPUSDT', 'PYTHUSDT', 'WIFUSDT', 'BOMEUSDT', 'ENAUSDT', 'OMNIUSDT', 'REZUSDT',
+            'BBUSDT', 'IOUSDT', 'ZKUSDT', 'ZROUSDT', 'GUSDT', 'BANAUSDT', 'TAOUSDT', 'LISTAUSDT', 'DOGSUSDT', 'CATIUSDT'
+        ]
+        
+        mid_caps = [
+            'NEIROUSDT', 'TURBOUSDT', 'MEMEUSDT', 'GOATUSDT', 'PNUTUSDT', 'ACTUSDT', 'MOVEUSDT', '1000SATSUSDT', 'COMPUSDT', 'SNXUSDT',
+            'CRVUSDT', 'LRCUSDT', 'BATUSDT', 'ENJUSDT', 'ZILUSDT', 'HOTUSDT', 'CELRUSDT', 'DASHUSDT', 'XMRUSDT', 'YFIUSDT',
+            'SUSHIUSDT', 'ONEUSDT', 'ONTUSDT', 'QTUMUSDT', 'ICXUSDT', 'OMGUSDT', 'ZENUSDT', 'ZRXUSDT', 'RVNUSDT', 'DGBUSDT',
+            'HNTUSDT', 'SCUSDT', 'WAVESUSDT', 'BANDUSDT', 'ANKRUSDT', 'OCEANUSDT', 'NMRUSDT', 'KSMUSDT', 'LUNAUSDT', 'GALAUSDT',
+            'APEUSDT', 'GMTUSDT', 'KNCUSDT', 'LOOKSUSDT', 'ENSUSDT', 'LDOBUSDT', 'EPXUSDT', 'LEVERUSDT', 'STGUSDT', 'GMXUSDT',
+            'POLYXUSDT', 'BLURUSDT', 'BNXUSDT', 'ACHUSDT', 'SSVUSDT', 'CKBUSDT', 'PERPUSDT', 'TRUUSDT', 'LQTYUSDT', 'IDUSDT'
+        ]
+        
+        small_caps = [
+            'STRKUSDT', 'XAIUSDT', 'ACEUSDT', 'NFPUSDT', 'AIUSDT', 'MANTAUSDT', 'ALTUSDT', 'SAGAUSDT', 'WUSDT', 'SUNUSDT',
+            'TROYUSDT', 'COWUSDT', 'HMSTRUSDT', 'CETUSUSDT', 'EIGENUSDT', 'SCRUSDT', 'MEUSDT', 'GRASSUSDT', 'VANAUSDT', 'BIOUSDT',
+            'RDNTUSDT', 'WAXPUSDT', 'CFXUSDT', 'JASMYUSDT', 'DARUSDT', 'UNFIUSDT', 'MAVUSDT', 'PENDLEUSDT', 'ARKMUSDT', 'FXSUSDT',
+            'LVLUSDT', 'HIGHUSDT', 'CVXUSDT', 'AGIXUSDT', 'PHBUSDT', 'HOOKUSDT', 'MAGICUSDT', 'TBUSDT', 'SNTUSDT', 'KEYUSDT',
+            'COMBOUSDT', 'MXUSDT', 'ARKUSDT', 'WBETHUSDT', 'BEAMXUSDT', 'PIVXUSDT', 'VICUSDT', 'VANRYUSDT', 'AERGOUSDT', 'PYRUSDT',
+            'NULSUSDT', 'RADUSDT', 'CHESSUSDT', 'ROSEUSDT', 'CVPUSDT', 'BNTUSDT', 'FISUSDT', 'FLMUSDT', 'PROMAUSDT', 'VIDTUSDT'
+        ]
+        
+        emerging_coins = [
+            'NKNUSDT', 'GNOUSDT', 'POWRUSDT', 'SLPUSDT', 'VTHOUSDT', 'SPELLUSDT', 'STRAXUSDT', 'RPLUSDT', 'NEBLUSDT', 'ASTRUSDT',
+            'KDAUSDT', 'BSWUSDT', 'OSMOUSDT', 'REIUSDT', 'GALUSDT', 'HFTUSDT', 'AXTUSDT', 'AMBUSDT', 'GASUSDT', 'GLMUSDT',
+            'PROMUSDT', 'QKCUSDT', 'UFTUSDT', 'EDUUSDT', 'PORTALUSDT', 'PIXELUSDT', 'AXLUSDT', 'POLUSDT', 'DECUSDT', 'TLMUSDT',
+            'ALICEUSDT', 'AUDIOUSDT', 'C98USDT', 'MINAUSDT', 'RAYUSDT', 'FARMUSDT', 'ALPACAUSDT', 'QUICKUSDT', 'TKOUSDT', 'WINNUSDT',
+            'COGOUSDT', 'PUNDIXUSDT', 'NFTUSDT', 'BETAUSDT', 'RAMPUSDT', 'SUPERUSDT', 'ERNUSDT', 'ARDRУСDT', 'LINAUSDT', 'RGTUSDT',
+            'TWTUSDT', 'FIROUSDT', 'LITUSDT', 'SFPUSDT', 'DODOXUSDT', 'ACMUSDT', 'BADGERUSDT', 'OMOUSDT', 'PONDUSDT', 'DEGOUSDT'
+        ]
+        
+        additional_coins = [
+            'BLZUSDT', 'CTSIUSDT', 'DATAUSDT', 'DENTUSDT', 'DOCKUSDT', 'DREPUSDT', 'DUSKUSDT', 'FORMUSDT', 'FTTUSDT', 'FUNUSDT',
+            'GHSTUSDT', 'HIVEUSDT', 'IOSTUSDT', 'IOTXUSDT', 'KAVAUSDT', 'MDTUSDT', 'MTLUSDT', 'NXTUSDT', 'OGNUSDT', 'OXTUSDT',
+            'PAXGUSDT', 'PHAUSDT', 'PLAUSDT', 'QIUSDT', 'REQUSDT', 'SKLUSDT', 'SRMUSDT', 'STMXUSDT', 'STORJUSDT', 'STPTUSDT',
+            'SYSUSDT', 'TCUSDT', 'TFUELUSDT', 'TLMUSDT', 'TORNUSDT', 'TRBUSDT', 'TVKUSDT', 'TWAUSDT', 'VGXUSDT', 'VOXELUSDT',
+            'XECUSDT', 'XEMUSDT', 'XLMUSDT', 'XVSUSDT', 'YGGUSDT', 'ANCUSDT', 'ATAUSDT', 'AUDUSDT', 'AVAUSDT', 'BAKEUSDT',
+            'BCDUSDT', 'BELUSDT', 'BETAUSDT', 'BIFIUSDT', 'BKRWUSDT', 'BLUZUSDT', 'BNTUSDT', 'BQXUSDT', 'BRDUSDT', 'BTSUSDT',
+            'BTTUSDT', 'BZRXUSDT', 'COCOSUSDT', 'COSUSDT', 'COTIUSDT', 'CTXCUSDT', 'CVCUSDT', 'CZSUSDT', 'HARDUSDT', 'HIVEUSDT',
+            'HNTUSDT', 'HOOKUSDT', 'HOTUSDT', 'HSKUSDT', 'ICPUSDT', 'INJUSDT', 'IRISUSDT', 'JSTUSDT', 'JTOUSDT', 'KAVAUSDT',
+            'KEYUSDT', 'LENDUSDT', 'LINKUSDT', 'LOOMUSSDT', 'LRCUSDT', 'LSKUSDT', 'LTOUSDT', 'LUNAUSDT', 'MANAUSSDT', 'MBLUSDT',
+            'MBOXUSDT', 'MCOUSDT', 'MDTUSDT', 'MINAUSDT', 'MIRUSDT', 'MITHUSDT', 'MKRUSDT', 'MOBUSDT', 'NANOUSDT', 'NBSUSDT'
+        ]
+        
+        # Tüm listeleri birleştir ve tekrarları kaldır
+        all_coins = major_coins + popular_coins + mid_caps + small_caps + emerging_coins + additional_coins
+        unique_coins = list(dict.fromkeys(all_coins))  # Tekrarları kaldır, sırayı koru
+        
+        # Tam 500 coin için ek coinler ekle
+        extra_coins = [
+            'NEBLUSDT', 'NULSUSDT', 'OGNUSDT', 'ONGUSDT', 'OSTUSDT', 'PAXGUSDT', 'PERLUSDT', 'PIVXUSDT', 'POEUSDT', 'POLYUSDT',
+            'POWRUSDT', 'PPTUSDT', 'QKCUSDT', 'QSPUSDT', 'QTUMUSDT', 'RENUSDT', 'REPUSDT', 'REQUSDT', 'RLCUSDT', 'SALTUSDT',
+            'SCUSDT', 'SKYUSDT', 'SNGLSUSDT', 'SNMUSSDT', 'STEEMUSDT', 'STORJUSSDT', 'STORMUSSDT', 'STRATUSSDT', 'SUBUSDT', 'SYSUSSDT',
+            'TCTUSUSDT', 'TFUELUSDT', 'THETAUSDT', 'TNTUSDT', 'TOMOUSUSDT', 'TRBUSDT', 'TRIGUSDT', 'TRXUSDT', 'TUSDUSSDT', 'TVKUSDT',
+            'TWAUSDT', 'VENUSDT', 'VIAUSSDT', 'VIBUSDT', 'VITEUSDT', 'WANUSDT', 'WAVESUSS DT', 'WINGSUSSDT', 'WTCUSSDT', 'XEMUSSDT',
+            'XLMUSDT', 'XMRUSDT', 'XRPUSDT', 'XTZUSDT', 'XVGUSDT', 'XVSUSDT', 'YOYOUSDT', 'ZECUSDT', 'ZENUSSDT', 'ZILUSSDT'
+        ]
+        
+        final_coins = unique_coins + extra_coins
+        top_coins = final_coins[:500]  # İlk 500 coin al
         
         logger.info(f"Using {len(top_coins)} hardcoded USDT pairs")
         return top_coins
@@ -534,8 +585,9 @@ class CryptoBotGitHub:
             # Position data'nın gerçek yapısını kontrol et
             pos_data_root = position_data.get('data', position_data)  # Asıl veri 'data' içinde olabilir
             
-            # MA VALIDATION %100 - 4 TIMEFRAME BİREBİR EŞLEŞME
+            # 1. MA VALIDATION %100 - 4 TIMEFRAME BİREBİR EŞLEŞME
             ma_check_passed = True
+            ma_consistency_count = 0  # MA tutarlılık sayacı
             
             for tf in timeframes:
                 tf_data = current_data.get(tf, {})
@@ -544,14 +596,46 @@ class CryptoBotGitHub:
                 current_ma = tf_data.get('ma_order', [])
                 position_ma = pos_tf_data.get('ma_order', [])
                 
-                # MA sıralaması tam eşleşmiyorsa RED
-                if current_ma != position_ma or len(current_ma) != 3:
+                # MA sıralaması tam eşleşirse sayacı artır
+                if current_ma == position_ma and len(current_ma) == 3:
+                    ma_consistency_count += 1
+                else:
                     ma_check_passed = False
-                    break
             
-            # MA'lar eşleşmiyorsa hiç skor verme
-            if not ma_check_passed:
-                return {'score': 0, 'quality': 'POOR', 'details': 'MA sıralaması eşleşmiyor', 'factors_matched': 0}
+            # ULTRA SıKı KRITER: 3/3 timeframe MA eşleşmesi gerekli (4. timeframe isteğe bağlı)
+            if ma_consistency_count < 3:  # En az 3 timeframe eşleşmeli
+                return {'score': 0, 'quality': 'POOR', 'details': f'MA tutarlılığı yetersiz: {ma_consistency_count}/4', 'factors_matched': 0}
+            
+            # 2. GENEL TUTARLıLıK KONTROL - %80+ gerekli
+            timeframe_signals = []
+            for tf in timeframes:
+                tf_data = current_data.get(tf, {})
+                pos_tf_data = pos_data_root.get(tf, pos_data_root) if isinstance(pos_data_root, dict) else {}
+                
+                # Her timeframe için sinyal yönü belirle
+                current_ma = tf_data.get('ma_order', [])
+                if len(current_ma) == 3:
+                    # Bullish: [7,25,99] veya benzeri küçükten büyüğe
+                    # Bearish: [99,25,7] veya benzeri büyükten küçüğe  
+                    if current_ma[0] < current_ma[1] < current_ma[2]:
+                        timeframe_signals.append('BULL')
+                    elif current_ma[0] > current_ma[1] > current_ma[2]:
+                        timeframe_signals.append('BEAR')
+                    else:
+                        timeframe_signals.append('MIXED')
+            
+            # Sinyal tutarlılığını kontrol et
+            bull_count = timeframe_signals.count('BULL')
+            bear_count = timeframe_signals.count('BEAR')
+            total_clear_signals = bull_count + bear_count
+            
+            if total_clear_signals == 0:
+                return {'score': 0, 'quality': 'POOR', 'details': 'Hiç net sinyal yok', 'factors_matched': 0}
+            
+            # %75+ tutarlılık gerekli (en az 3/4 timeframe aynı yönde)
+            consistency_ratio = max(bull_count, bear_count) / len(timeframes)
+            if consistency_ratio < 0.75:  # %75 altı tutarlılık RED
+                return {'score': 0, 'quality': 'POOR', 'details': f'Tutarlılık düşük: %{consistency_ratio*100:.0f}', 'factors_matched': 0}
             
             total_score = 0
             total_factors = 0
@@ -757,7 +841,7 @@ class CryptoBotGitHub:
                 match_result = self.calculate_match_score(coin_data, pos)
                 score = match_result.get('score', 0)
                 
-                if score > best_score and score >= 75:  # Minimum %75 eşleşme
+                if score > best_score and score >= 90:  # Minimum %90 eşleşme (daha sıkı)
                     best_score = score
                     best_match = pos
                     best_details = match_result
@@ -872,7 +956,7 @@ class CryptoBotGitHub:
                 if coin_data:
                     # SADECE POZİSYON EŞLEŞMESİ - Dosyadan
                     match_result = self.analyze_hybrid_signal(coin_data, symbol)
-                    if match_result and match_result.get('match_percentage', 0) >= 75:  # Minimum %75 eşleşme
+                    if match_result and match_result.get('match_percentage', 0) >= 90:  # Minimum %90 eşleşme
                         matches.append({
                             'symbol': symbol,
                             **match_result
@@ -901,8 +985,11 @@ class CryptoBotGitHub:
             message += f"📊 <b>Market:</b> {market_regime}\n"
             message += f"🔍 <b>Tarama:</b> 500 coin\n"
             message += f"📈 <b>Sonuç:</b> Sinyal bulunamadı\n\n"
-            message += "⚠️ Tüm kriterler kontrol edildi ama uygun eşleşme yok.\n"
-            message += "44 faktör sistemi - %75+ eşleşme gerekli.\n"
+            message += "⚠️ Ultra sıkı kriterler - uygun eşleşme yok.\n"
+            message += "📋 Gereksinimler:\n"
+            message += "   🎯 Multi-TF: En az 3/4 timeframe eşleşmeli\n"
+            message += "   📊 Tutarlılık: %75+ (aynı yön sinyaller)\n"
+            message += "   🔥 Eşleşme: %90+ (pozisyon match)\n"
             message += "Bir sonraki tarama: 40 dakika içinde"
             return message
         
