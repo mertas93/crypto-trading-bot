@@ -186,9 +186,23 @@ def main():
         # Market durumunu al
         logger.info("📊 Market durumu analiz ediliyor...")
         
-        # Basit test mesajı gönder
-        test_msg = "🤖 <b>Bot Test</b>\n\n📊 Bot başlatıldı ve çalışıyor!\n⏰ " + datetime.now().strftime("%H:%M:%S")
-        success = bot.send_telegram_message(test_msg)
+         # Coin listesi test
+      crypto_list = bot.get_crypto_list()
+      if not crypto_list:
+      bot.send_telegram_message("❌ Coin listesi alınamadı! Binance API sorunu")
+      return 1
+
+  # Basit durum raporu gönder
+  report_msg = f"""🤖 <b>Crypto Bot Raporu</b>
+
+  📊 <b>Durum:</b> Aktif
+  🔍 <b>Coin listesi:</b> {len(crypto_list)} USDT çifti
+  ⏰ <b>Zaman:</b> {datetime.now().strftime("%H:%M:%S")}
+
+  🎯 <b>İlk 10 coin:</b>
+  {', '.join(crypto_list[:10])}
+
+  ✅ <b>Sistem hazır!</b> Gerçek tarama için tam kod aktifleştirilecek."""
         
         if success:
             logger.info("✅ Bot başarıyla çalışmaya başladı")
