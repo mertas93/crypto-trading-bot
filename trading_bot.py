@@ -176,21 +176,54 @@ class CryptoBotGitHub:
         return None
 
 def main():
-    """Ana fonksiyon"""
-    try:
-        logger.info("🤖 Crypto Trading Bot başlatılıyor...")
-        
-        # Bot'u başlat
-        bot = CryptoBotGitHub()
-        
-        # Market durumunu al
-        logger.info("📊 Market durumu analiz ediliyor...")
-        
-         # Coin listesi test
-      crypto_list = bot.get_crypto_list()
-      if not crypto_list:
-      bot.send_telegram_message("❌ Coin listesi alınamadı! Binance API sorunu")
-      return 1
+      """Ana fonksiyon"""
+      try:
+          logger.info("🤖 Crypto Trading Bot başlatılıyor...")
+
+          # Bot'u başlat
+          bot = CryptoBotGitHub()
+
+          # Coin listesi test
+          crypto_list = bot.get_crypto_list()
+          if not crypto_list:
+              bot.send_telegram_message("❌ Coin listesi alınamadı! Binance API sorunu")
+              return 1
+
+          # Basit durum raporu gönder
+          report_msg = f"""🤖 <b>Crypto Bot Raporu</b>
+
+  📊 <b>Durum:</b> Aktif
+  🔍 <b>Coin listesi:</b> {len(crypto_list)} USDT çifti
+  ⏰ <b>Zaman:</b> {datetime.now().strftime("%H:%M:%S")}
+
+  🎯 <b>İlk 10 coin:</b>
+  {', '.join(crypto_list[:10])}
+
+  ✅ <b>Sistem hazır!</b> Gerçek tarama için tam kod aktifleştirilecek."""
+
+          success = bot.send_telegram_message(report_msg)
+
+          if success:
+              logger.info("✅ Bot coin listesi başarıyla alındı")
+          else:
+              logger.error("❌ Telegram mesajı gönderilemedi")
+              return 1
+
+          return 0
+
+      except Exception as e:
+          error_msg = f"❌ Bot hatası: {str(e)}\n\n{traceback.format_exc()}"
+          logger.error(error_msg)
+
+          # Hata mesajını da Telegram'a göndermeyi dene
+          try:
+              bot = CryptoBotGitHub()
+              bot.send_telegram_message(f"🚨 <b>Bot 
+  Hatası</b>\n\n<pre>{str(e)[:400]}</pre>")
+          except:
+              pass
+
+          return 1
 
   # Basit durum raporu gönder
   report_msg = f"""🤖 <b>Crypto Bot Raporu</b>
