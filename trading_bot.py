@@ -811,26 +811,44 @@ class CryptoBotGitHub:
         """Ana tarama fonksiyonu - Orijinal sistem"""
         logger.info("🚀 Tarama başlatıldı...")
         
+        # Debug: Pozisyon verisi kontrolü
         if not self.positions_data:
-            logger.error("❌ Pozisyon verisi yok!")
+            error_msg = f"❌ Pozisyon verisi yok! trading_positions.json yüklenemedi"
+            logger.error(error_msg)
+            # Telegram'a da gönder
+            self.send_telegram_message(error_msg)
             return []
         
+        logger.info(f"✅ {len(self.positions_data)} pozisyon yüklendi")
+        
+        # Debug: API testi
         crypto_list = self.get_crypto_list()
         if not crypto_list:
-            logger.error("❌ Coin listesi alınamadı!")
+            error_msg = f"❌ Coin listesi alınamadı! Binance API sorunu"
+            logger.error(error_msg)
+            # Telegram'a da gönder  
+            self.send_telegram_message(error_msg)
             return []
+            
+        logger.info(f"✅ {len(crypto_list)} coin listesi alındı")
         
         matches = []
         scanned_count = 0
         
         logger.info(f"📊 {len(crypto_list)} coin taranacak...")
         
+        # Debug: İlk 10 coin'i Telegram'a gönder
+        first_coins = crypto_list[:10]
+        self.send_telegram_message(f"🔍 İlk 10 coin: {', '.join(first_coins)}")
+        
         for symbol in crypto_list:
             scanned_count += 1
             
             # Her 50 coin'de ilerleme raporu
             if scanned_count % 50 == 0:
-                logger.info(f"⏳ {scanned_count}/{len(crypto_list)} - {len(matches)} eşleşme")
+                progress_msg = f"⏳ {scanned_count}/{len(crypto_list)} - {len(matches)} eşleşme"
+                logger.info(progress_msg)
+                self.send_telegram_message(progress_msg)
             
             try:
                 # Coin için kapsamlı veri topla (timeout koruması)
