@@ -963,6 +963,17 @@ class CryptoBotGitHub:
                         })
                         logger.info(f"✅ Eşleşme bulundu: {symbol} -> {match_result['signal']}")
                         
+                        # HEMEN TELEGRAM MESAJI GÖNDER
+                        instant_msg = f"🚨 <b>CANLI SİNYAL!</b>\n\n"
+                        instant_msg += f"🪙 <b>{symbol}</b>\n"
+                        instant_msg += f"📈 <b>{match_result['signal']}</b>\n"
+                        instant_msg += f"🎯 <b>%{match_result['match_percentage']:.1f}</b> eşleşme\n"
+                        instant_msg += f"🔗 <b>{match_result.get('cross_pair', 'N/A')}</b>\n"
+                        instant_msg += f"⭐ <b>{match_result.get('quality', 'HIGH')}</b>\n\n"
+                        instant_msg += f"⏰ {datetime.now().strftime('%H:%M:%S')}"
+                        
+                        self.send_telegram_message(instant_msg)
+                        
             except Exception as e:
                 logger.debug(f"Coin tarama hatası {symbol}: {e}")
                 continue
@@ -1079,9 +1090,15 @@ def main():
         # Sonuçları kaydet
         bot.save_results_log(matches)
         
-        # Telegram mesajı gönder
-        message = bot.format_telegram_message(matches, market_regime)
-        success = bot.send_telegram_message(message)
+        # SADECE SİNYAL VARSA MESAJ GÖNDER
+        if matches:
+            # Özet mesaj gönder
+            message = bot.format_telegram_message(matches, market_regime)
+            success = bot.send_telegram_message(message)
+        else:
+            # Sinyal yoksa hiç mesaj gönderme
+            logger.info("❌ Sinyal bulunamadı - Telegram mesajı gönderilmedi")
+            success = True  # Hata değil, normal durum
         
         if success:
             logger.info("✅ Bot çalışması başarıyla tamamlandı")
