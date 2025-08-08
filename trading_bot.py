@@ -87,26 +87,56 @@ class CryptoBotGitHub:
             return False
 
     def get_crypto_list(self) -> List[str]:
-        """Binance'den USDT çiftlerini al - Orijinal sistem"""
+        """Binance'den USDT çiftlerini al - SADECE BİNANCE"""
         try:
-            response = requests.get("https://api.binance.com/api/v3/exchangeInfo", timeout=10)
-            response.raise_for_status()
-            data = response.json()
+            # Binance exchangeInfo - 24hr ticker ile kombinasyon
+            logger.info("🔍 Binance'den coin listesi alınıyor...")
             
-            usdt_pairs = []
-            for symbol in data['symbols']:
+            # 1. Aktif trading çiftleri al
+            response = requests.get("https://api.binance.com/api/v3/exchangeInfo", timeout=20)
+            response.raise_for_status()
+            exchange_data = response.json()
+            
+            # Aktif USDT çiftleri filtrele
+            active_usdt = []
+            for symbol in exchange_data['symbols']:
                 if (symbol['symbol'].endswith('USDT') and 
                     symbol['status'] == 'TRADING' and 
-                    symbol['symbol'] not in ['USDCUSDT', 'TUSDUSDT']):
-                    usdt_pairs.append(symbol['symbol'])
+                    symbol['symbol'] not in ['USDCUSDT', 'TUSDUSDT', 'FDUSDUSDT']):
+                    active_usdt.append(symbol['symbol'])
             
-            # İlk 500 coin'i al ve major coinleri öncelikle
+            # 2. 24hr volume verisi al - sıralama için
+            logger.info("📊 Volume verileri alınıyor...")
+            response = requests.get("https://api.binance.com/api/v3/ticker/24hr", timeout=20)
+            response.raise_for_status()
+            volume_data = response.json()
+            
+            # Volume'a göre sırala
+            volume_dict = {ticker['symbol']: float(ticker['quoteVolume']) for ticker in volume_data}
+            
+            # Sadece aktif USDT çiftlerini al ve volume'a göre sırala
+            usdt_with_volume = []
+            for symbol in active_usdt:
+                if symbol in volume_dict:
+                    usdt_with_volume.append((symbol, volume_dict[symbol]))
+            
+            # Volume'a göre sırala (yüksekten düşüğe)
+            usdt_with_volume.sort(key=lambda x: x[1], reverse=True)
+            
+            # İlk 500 coin - major coinleri öncelikle
             major_coins = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'SOLUSDT']
-            prioritized = major_coins + [coin for coin in usdt_pairs if coin not in major_coins]
+            other_coins = [coin[0] for coin in usdt_with_volume if coin[0] not in major_coins]
             
-            return prioritized[:500]
+            final_list = major_coins + other_coins
+            result = final_list[:500]
+            
+            logger.info(f"✅ Binance: {len(result)} USDT çifti alındı")
+            return result
+            
         except Exception as e:
-            logger.error(f"❌ Coin listesi alma hatası: {e}")
+            logger.error(f"❌ Binance API hatası: {e}")
+            # Telegram'a hata bildir
+            self.send_telegram_message(f"🚨 Binance API Hatası!\n\n{str(e)[:200]}...")
             return []
 
     def get_candle_data(self, symbol: str, timeframe: str, limit: int = 100) -> Optional[List[float]]:
