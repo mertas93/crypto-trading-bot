@@ -21,7 +21,7 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler('crypto_bot.log'),
-        logging.StreamHandler(sys.stdout)@
+        logging.StreamHandler(sys.stdout)
     ]
 )
 logger = logging.getLogger(__name__)
@@ -41,6 +41,18 @@ class CryptoBotGitHub:
         self.binance_futures_api = "https://fapi.binance.com/fapi/v1"
         self.timeframes = ["1m", "3m", "5m", "30m"]
         
+        # Headers - Bot detection bypass
+        self.headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'application/json',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Connection': 'keep-alive',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'cross-site'
+        }
+        
         # Market data cache
         self.btc_data = None
         self.market_sentiment = None
@@ -48,38 +60,35 @@ class CryptoBotGitHub:
         
         # Trading positions - GitHub'dan yükle
         self.positions_data = []
-        self.load_positions()
-        
-        logger.info(f"Bot başlatıldı - {len(self.positions_data)} pozisyon yüklendi")
+        self.load_positions_from_file()
 
-    def load_positions(self):
-        """Pozisyon verilerini GitHub'dan yükle"""
+    def load_positions_from_file(self):
+        """trading_positions.json dosyasını yükle"""
         try:
             with open('trading_positions.json', 'r', encoding='utf-8') as f:
-                self.positions_data = json.load(f)
+                data = json.load(f)
+                self.positions_data = data.get('positions', data)  # Backward compatibility
                 logger.info(f"✅ {len(self.positions_data)} pozisyon yüklendi")
         except FileNotFoundError:
-            logger.error("❌ trading_positions.json dosyası bulunamadı!")
+            logger.error("❌ trading_positions.json bulunamadı!")
             self.positions_data = []
         except Exception as e:
-            logger.error(f"❌ Pozisyon yükleme hatası: {e}")
+            logger.error(f"❌ Pozisyon dosyası yükleme hatası: {e}")
             self.positions_data = []
 
-    def send_telegram_message(self, message: str):
-        """Telegram'a mesaj gönder"""
+    def send_telegram_message(self, message: str) -> bool:
+        """Telegram mesajı gönder"""
         try:
             url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
-            payload = {
+            data = {
                 'chat_id': self.chat_id,
                 'text': message,
                 'parse_mode': 'HTML',
                 'disable_web_page_preview': True
             }
             
-            response = requests.post(url, json=payload, timeout=30)
+            response = requests.post(url, data=data, timeout=10)
             response.raise_for_status()
-            
-            logger.info("✅ Telegram mesajı gönderildi")
             return True
             
         except Exception as e:
@@ -92,21 +101,9 @@ class CryptoBotGitHub:
             # Binance exchangeInfo - 24hr ticker ile kombinasyon
             logger.info("🔍 Binance'den coin listesi alınıyor...")
             
-            # Headers - Bot detection bypass
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-                'Accept': 'application/json',
-                'Accept-Encoding': 'gzip, deflate, br',
-                'Accept-Language': 'en-US,en;q=0.9',
-                'Connection': 'keep-alive',
-                'Sec-Fetch-Dest': 'empty',
-                'Sec-Fetch-Mode': 'cors',
-                'Sec-Fetch-Site': 'cross-site'
-            }
-            
             # 1. Aktif trading çiftleri al - headers ile
             response = requests.get("https://api.binance.com/api/v3/exchangeInfo", 
-                                  headers=headers, timeout=30)
+                                  headers=self.headers, timeout=30)
             response.raise_for_status()
             exchange_data = response.json()
             
@@ -121,7 +118,7 @@ class CryptoBotGitHub:
             # 2. 24hr volume verisi al - sıralama için
             logger.info("📊 Volume verileri alınıyor...")
             response = requests.get("https://api.binance.com/api/v3/ticker/24hr", 
-                                  headers=headers, timeout=30)
+                                  headers=self.headers, timeout=30)
             response.raise_for_status()
             volume_data = response.json()
             
@@ -162,7 +159,7 @@ class CryptoBotGitHub:
                     'interval': timeframe,
                     'limit': limit
                 }
-                response = requests.get(self.binance_api, params=params, timeout=15)
+                response = requests.get(self.binance_api, params=params, headers=self.headers, timeout=15)
                 response.raise_for_status()
                 data = response.json()
                 
@@ -170,868 +167,31 @@ class CryptoBotGitHub:
                     closes = [float(candle[4]) for candle in data]
                     return closes
                 return None
+                
             except Exception as e:
-                if attempt < 2:
-                    time.sleep(1)
-                    continue
-                logger.debug(f"Mum verisi alma hatası {symbol}: {e}")
-                return None
+                if attempt == 2:
+                    logger.debug(f"❌ {symbol} {timeframe} candle verisi alınamadı: {e}")
+                time.sleep(1.0)  # Retry bekle
+                
         return None
-
-    def calculate_ma(self, closes: List[float], period: int) -> Optional[float]:
-        """Moving Average hesapla - Orijinal sistem"""
-        if len(closes) < period:
-            return None
-        return sum(closes[-period:]) / period
-
-    def calculate_rsi(self, closes: List[float], period: int = 14) -> Optional[float]:
-        """RSI hesapla - Orijinal sistem"""
-        if len(closes) < period + 1:
-            return None
-        
-        deltas = np.diff(closes)
-        gains = np.where(deltas > 0, deltas, 0)
-        losses = np.where(deltas < 0, -deltas, 0)
-        
-        avg_gain = np.mean(gains[-period:])
-        avg_loss = np.mean(losses[-period:])
-        
-        if avg_loss == 0:
-            return 100
-        
-        rs = avg_gain / avg_loss
-        rsi = 100 - (100 / (1 + rs))
-        return round(rsi, 2)
-
-    def calculate_macd(self, closes: List[float]) -> tuple:
-        """MACD hesapla - Orijinal sistem"""
-        if len(closes) < 26:
-            return None, None, None
-        
-        ema_12 = self.calculate_ema(closes, 12)
-        ema_26 = self.calculate_ema(closes, 26)
-        
-        if ema_12 is None or ema_26 is None:
-            return None, None, None
-        
-        macd_line = ema_12 - ema_26
-        signal_line = self.calculate_ema([macd_line], 9)
-        histogram = macd_line - (signal_line or 0)
-        
-        return round(macd_line, 4), round(signal_line or 0, 4), round(histogram, 4)
-
-    def calculate_ema(self, closes: List[float], period: int) -> Optional[float]:
-        """EMA hesapla - Orijinal sistem"""
-        if len(closes) < period:
-            return None
-        
-        closes_array = np.array(closes)
-        alpha = 2 / (period + 1)
-        ema = closes_array[0]
-        
-        for price in closes_array[1:]:
-            ema = alpha * price + (1 - alpha) * ema
-        
-        return ema
-
-    def calculate_bollinger_bands(self, closes: List[float], period: int = 20, std_dev: int = 2) -> tuple:
-        """Bollinger Bands hesapla - Orijinal sistem"""
-        if len(closes) < period:
-            return None, None, None
-        
-        ma = self.calculate_ma(closes, period)
-        if ma is None:
-            return None, None, None
-        
-        closes_array = np.array(closes[-period:])
-        std = np.std(closes_array)
-        
-        upper_band = ma + (std_dev * std)
-        lower_band = ma - (std_dev * std)
-        
-        return round(upper_band, 4), round(ma, 4), round(lower_band, 4)
-
-    def calculate_stoch_rsi(self, closes: List[float], period: int = 14) -> Optional[float]:
-        """Stochastic RSI hesapla - Orijinal sistem"""
-        if len(closes) < period * 2:
-            return None
-        
-        # RSI değerlerini hesapla
-        rsi_values = []
-        for i in range(period, len(closes)):
-            rsi = self.calculate_rsi(closes[:i+1], period)
-            if rsi is not None:
-                rsi_values.append(rsi)
-        
-        if len(rsi_values) < period:
-            return None
-        
-        recent_rsi = rsi_values[-period:]
-        min_rsi = min(recent_rsi)
-        max_rsi = max(recent_rsi)
-        
-        if max_rsi == min_rsi:
-            return 50
-        
-        stoch_rsi = (recent_rsi[-1] - min_rsi) / (max_rsi - min_rsi) * 100
-        return round(stoch_rsi, 2)
-
-    def get_funding_rate(self, symbol: str) -> Optional[float]:
-        """Fonlama oranını al - Orijinal sistem"""
-        try:
-            url = f"{self.binance_futures_api}/premiumIndex"
-            params = {'symbol': symbol}
-            response = requests.get(url, params=params, timeout=10)
-            data = response.json()
-            
-            if 'lastFundingRate' in data:
-                return float(data['lastFundingRate'])
-            return None
-        except:
-            return None
-
-    def get_24h_stats(self, symbol: str) -> Optional[Dict]:
-        """24 saatlik istatistikleri al - Orijinal sistem"""
-        try:
-            url = "https://api.binance.com/api/v3/ticker/24hr"
-            params = {'symbol': symbol}
-            response = requests.get(url, params=params, timeout=10)
-            data = response.json()
-            
-            if 'volume' in data and 'count' in data:
-                return {
-                    'volume_change': float(data.get('priceChangePercent', 0)),
-                    'volume_24h': float(data.get('volume', 0)),
-                    'trade_count': int(data.get('count', 0)),
-                    'price_change_24h': float(data.get('priceChangePercent', 0))
-                }
-            return None
-        except:
-            return None
-
-    def calculate_btc_correlation(self, symbol_closes: List[float], btc_closes: List[float]) -> Optional[float]:
-        """BTC ile korelasyon hesapla - Orijinal sistem"""
-        try:
-            if not symbol_closes or not btc_closes or len(symbol_closes) < 20:
-                return None
-            
-            # Son 20 değeri al
-            symbol_data = np.array(symbol_closes[-20:])
-            btc_data = np.array(btc_closes[-20:])
-            
-            # Yüzde değişimleri hesapla
-            symbol_returns = np.diff(symbol_data) / symbol_data[:-1]
-            btc_returns = np.diff(btc_data) / btc_data[:-1]
-            
-            # Korelasyon hesapla
-            correlation = np.corrcoef(symbol_returns, btc_returns)[0, 1]
-            return round(correlation, 3) if not np.isnan(correlation) else None
-        except:
-            return None
-
-    def get_market_sentiment(self) -> Optional[Dict]:
-        """Genel piyasa sentiment analizi - Orijinal sistem"""
-        try:
-            url = "https://api.binance.com/api/v3/ticker/24hr"
-            response = requests.get(url, timeout=10)
-            response.raise_for_status()
-            data = response.json()
-            
-            if not data:
-                return None
-            
-            # Genel piyasa analizi
-            positive_coins = 0
-            negative_coins = 0
-            total_volume = 0
-            
-            for ticker in data:
-                if ticker['symbol'].endswith('USDT'):
-                    price_change = float(ticker['priceChangePercent'])
-                    volume = float(ticker['volume'])
-                    
-                    if price_change > 0:
-                        positive_coins += 1
-                    else:
-                        negative_coins += 1
-                    
-                    total_volume += volume
-            
-            total_coins = positive_coins + negative_coins
-            if total_coins == 0:
-                return None
-            
-            bullish_ratio = positive_coins / total_coins
-            
-            # Sentiment kategorisi
-            if bullish_ratio > 0.6:
-                sentiment = "bullish"
-            elif bullish_ratio < 0.4:
-                sentiment = "bearish"
-            else:
-                sentiment = "neutral"
-            
-            return {
-                'sentiment': sentiment,
-                'bullish_ratio': round(bullish_ratio, 3),
-                'positive_coins': positive_coins,
-                'negative_coins': negative_coins,
-                'total_volume': total_volume
-            }
-        except:
-            return None
-
-    def get_btc_data(self) -> Optional[List[float]]:
-        """BTC verilerini cache'le - Orijinal sistem"""
-        if self.btc_data is None:
-            self.btc_data = self.get_candle_data('BTCUSDT', '1h', limit=50)
-        return self.btc_data
-
-    def get_volatility_index(self, closes: List[float]) -> Optional[float]:
-        """Volatilite indeksi hesapla - Orijinal sistem"""
-        try:
-            if len(closes) < 20:
-                return None
-            
-            # Son 20 mumun volatilitesi
-            returns = np.diff(closes[-20:]) / closes[-20:-1]
-            volatility = np.std(returns) * 100
-            return round(volatility, 3)
-        except:
-            return None
-
-    def get_support_resistance(self, closes: List[float], highs: List[float], lows: List[float]) -> Optional[Dict]:
-        """Destek direnç seviyeleri - Orijinal sistem"""
-        try:
-            if len(closes) < 50:
-                return None
-            
-            recent_high = max(highs[-20:])
-            recent_low = min(lows[-20:])
-            current_price = closes[-1]
-            
-            # Fiyatın destek/direnç arasındaki konumu
-            if recent_high == recent_low:
-                position = 0.5
-            else:
-                position = (current_price - recent_low) / (recent_high - recent_low)
-            
-            return {
-                'support': recent_low,
-                'resistance': recent_high,
-                'position': round(position, 3),  # 0-1 arasında
-                'near_support': position < 0.2,  # Desteğe yakın
-                'near_resistance': position > 0.8  # Dirençe yakın
-            }
-        except:
-            return None
-
-    def get_order_book_pressure(self, symbol: str) -> Optional[Dict]:
-        """Emir defteri baskısı - Orijinal sistem"""
-        try:
-            url = "https://api.binance.com/api/v3/depth"
-            params = {'symbol': symbol, 'limit': 100}
-            response = requests.get(url, params=params, timeout=10)
-            data = response.json()
-            
-            if 'bids' in data and 'asks' in data:
-                # Alış ve satış derinliği
-                bid_volume = sum(float(bid[1]) for bid in data['bids'][:10])
-                ask_volume = sum(float(ask[1]) for ask in data['asks'][:10])
-                
-                total_volume = bid_volume + ask_volume
-                if total_volume == 0:
-                    return None
-                
-                # Alış baskısı yüzdesi
-                buy_pressure = bid_volume / total_volume
-                
-                return {
-                    'buy_pressure': round(buy_pressure, 3),
-                    'sell_pressure': round(1 - buy_pressure, 3),
-                    'imbalance': 'buy' if buy_pressure > 0.6 else 'sell' if buy_pressure < 0.4 else 'balanced'
-                }
-            return None
-        except:
-            return None
-
-    def analyze_candle_values(self, closes: List[float]) -> Optional[List[int]]:
-        """Close fiyatlarından MA7, MA25, MA99 hesapla ve sırala - Orijinal sistem"""
-        if not closes or len(closes) < 99:
-            return None
-        
-        # Moving Average değerlerini hesapla
-        ma_7 = self.calculate_ma(closes, 7)
-        ma_25 = self.calculate_ma(closes, 25)
-        ma_99 = self.calculate_ma(closes, 99)
-        
-        if None in [ma_7, ma_25, ma_99]:
-            return None
-        
-        # MA değerlerini sırala (büyükten küçüğe)
-        values = [
-            (7, ma_7),
-            (25, ma_25), 
-            (99, ma_99)
-        ]
-        values.sort(key=lambda x: x[1], reverse=True)
-        return [v[0] for v in values]
-
-    def get_comprehensive_data(self, symbol: str) -> Optional[Dict]:
-        """Coin için kapsamlı teknik veri topla - Orijinal sistem"""
-        try:
-            all_data = {}
-            
-            # Market verileri
-            funding_rate = self.get_funding_rate(symbol)
-            stats_24h = self.get_24h_stats(symbol)
-            btc_data = self.get_btc_data()
-            order_book = self.get_order_book_pressure(symbol)
-            
-            # Market sentiment (cache'le)
-            if self.market_sentiment is None:
-                self.market_sentiment = self.get_market_sentiment()
-            
-            for timeframe in self.timeframes:
-                closes = self.get_candle_data(symbol, timeframe, limit=100)
-                if not closes:
-                    continue
-                
-                # BTC korelasyonu hesapla
-                btc_correlation = None
-                if btc_data and symbol != 'BTCUSDT':
-                    btc_correlation = self.calculate_btc_correlation(closes, btc_data)
-                
-                # Ek teknik analizler
-                volatility = self.get_volatility_index(closes)
-                
-                # High/Low verileri için basit yaklaşım (close'dan tahmin)
-                highs = [c * 1.01 for c in closes]  # Close'un %1 üstü
-                lows = [c * 0.99 for c in closes]   # Close'un %1 altı
-                support_resistance = self.get_support_resistance(closes, highs, lows)
-                
-                # Tüm teknik indikatörleri hesapla
-                timeframe_data = {
-                    'ma_7': self.calculate_ma(closes, 7),
-                    'ma_25': self.calculate_ma(closes, 25), 
-                    'ma_99': self.calculate_ma(closes, 99),
-                    'rsi': self.calculate_rsi(closes),
-                    'macd': self.calculate_macd(closes),
-                    'bollinger': self.calculate_bollinger_bands(closes),
-                    'stoch_rsi': self.calculate_stoch_rsi(closes),
-                    'volume_avg': np.mean(closes[-20:]) if len(closes) >= 20 else None,
-                    'price_current': closes[-1],
-                    'ma_order': self.analyze_candle_values(closes),
-                    
-                    # YENİ MARKET FAKTÖRLER
-                    'funding_rate': funding_rate,
-                    'stats_24h': stats_24h,
-                    'btc_correlation': btc_correlation,
-                    'market_sentiment': self.market_sentiment,
-                    
-                    # SÜPER YENİ FAKTÖRLER
-                    'volatility': volatility,
-                    'support_resistance': support_resistance,
-                    'order_book': order_book
-                }
-                
-                all_data[timeframe] = timeframe_data
-            
-            return all_data
-        except Exception as e:
-            return None
-
-    def calculate_match_score(self, current_data: Dict, position_data: Dict) -> Dict[str, Any]:
-        """44 FAKTÖR SİSTEMİ - 4 timeframe x 11 kriter - Orijinal sistem"""
-        try:
-            # ZAMAN DİLİMLERİ: 1dk, 3dk, 5dk, 30dk
-            timeframes = ['1m', '3m', '5m', '30m']
-            
-            # Position data'nın gerçek yapısını kontrol et
-            pos_data_root = position_data.get('data', position_data)  # Asıl veri 'data' içinde olabilir
-            
-            # MA VALIDATION %100 - 4 TIMEFRAME BİREBİR EŞLEŞME
-            ma_check_passed = True
-            
-            for tf in timeframes:
-                tf_data = current_data.get(tf, {})
-                pos_tf_data = pos_data_root.get(tf, pos_data_root) if isinstance(pos_data_root, dict) else {}
-                
-                current_ma = tf_data.get('ma_order', [])
-                position_ma = pos_tf_data.get('ma_order', [])
-                
-                # MA sıralaması tam eşleşmiyorsa RED
-                if current_ma != position_ma or len(current_ma) != 3:
-                    ma_check_passed = False
-                    break
-            
-            # MA'lar eşleşmiyorsa hiç skor verme
-            if not ma_check_passed:
-                return {'score': 0, 'quality': 'POOR', 'details': 'MA sıralaması eşleşmiyor', 'factors_matched': 0}
-            
-            total_score = 0
-            total_factors = 0
-            match_details = []
-            
-            for tf in timeframes:
-                tf_data = current_data.get(tf, {})
-                # Position data'dan timeframe verisi al
-                pos_tf_data = pos_data_root.get(tf, pos_data_root) if isinstance(pos_data_root, dict) else {}
-                
-                # 1. MA SIRALAMASI (2.27 puan)
-                current_ma = tf_data.get('ma_order', [])
-                position_ma = pos_tf_data.get('ma_order', [])
-                
-                if current_ma == position_ma and len(current_ma) == 3:
-                    total_score += 2.27
-                    match_details.append(f"✅ {tf} MA eşleşme")
-                total_factors += 1
-                
-                # 2. RSI DEĞERLERİ (2.27 puan) - ±5 tolerans
-                current_rsi = tf_data.get('rsi', 50)
-                position_rsi = pos_tf_data.get('rsi', 50)
-                
-                if abs(current_rsi - position_rsi) <= 5:
-                    total_score += 2.27
-                    match_details.append(f"✅ {tf} RSI yakın")
-                total_factors += 1
-                
-                # 3. MACD TREND (2.27 puan)
-                current_macd = tf_data.get('macd')
-                position_macd = pos_tf_data.get('macd')
-                
-                # MACD trend belirleme
-                current_trend = 'bullish' if (current_macd and current_macd[0] > current_macd[1]) else 'bearish'
-                position_trend = 'bullish' if (position_macd and position_macd[0] > position_macd[1]) else 'bearish'
-                
-                if current_trend == position_trend:
-                    total_score += 2.27
-                    match_details.append(f"✅ {tf} MACD eşleşme")
-                total_factors += 1
-                
-                # 4. BOLLINGER BANDS (2.27 puan)
-                current_bb = tf_data.get('bollinger')
-                position_bb = pos_tf_data.get('bollinger')
-                
-                # BB pozisyon belirleme
-                current_bb_pos = 'middle'
-                position_bb_pos = 'middle'
-                
-                if current_bb and len(current_bb) == 3:
-                    price = tf_data.get('price_current', 0)
-                    upper, middle, lower = current_bb
-                    if price >= upper:
-                        current_bb_pos = 'upper'
-                    elif price <= lower:
-                        current_bb_pos = 'lower'
-                
-                if position_bb and len(position_bb) == 3:
-                    pos_price = pos_tf_data.get('price_current', 0)
-                    upper, middle, lower = position_bb
-                    if pos_price >= upper:
-                        position_bb_pos = 'upper'
-                    elif pos_price <= lower:
-                        position_bb_pos = 'lower'
-                
-                if current_bb_pos == position_bb_pos:
-                    total_score += 2.27
-                    match_details.append(f"✅ {tf} Bollinger eşleşme")
-                total_factors += 1
-                
-                # 5. FONLAMA ORANI (2.27 puan)
-                current_funding = tf_data.get('funding_rate', 0) or 0
-                position_funding = pos_tf_data.get('funding_rate', 0) or 0
-                
-                if abs(current_funding - position_funding) <= 0.01:
-                    total_score += 2.27
-                    match_details.append(f"✅ {tf} Funding eşleşme")
-                total_factors += 1
-                
-                # 6. 24H FİYAT DEĞİŞİMİ (2.27 puan) - ±10% tolerans
-                current_stats = tf_data.get('stats_24h', {})
-                position_stats = pos_tf_data.get('stats_24h', {})
-                
-                current_change = current_stats.get('price_change_24h', 0) if current_stats else 0
-                position_change = position_stats.get('price_change_24h', 0) if position_stats else 0
-                
-                if abs(current_change - position_change) <= 10:
-                    total_score += 2.27
-                    match_details.append(f"✅ {tf} Fiyat değişimi eşleşme")
-                total_factors += 1
-                
-                # 7. BTC KORELASYON (2.27 puan) - ±0.2 tolerans
-                current_corr = tf_data.get('btc_correlation', 0) or 0
-                position_corr = pos_tf_data.get('btc_correlation', 0) or 0
-                
-                if abs(current_corr - position_corr) <= 0.2:
-                    total_score += 2.27
-                    match_details.append(f"✅ {tf} BTC korelasyon eşleşme")
-                total_factors += 1
-                
-                # 8. PİYASA SENTIMENT (2.27 puan)
-                current_sentiment_data = tf_data.get('market_sentiment', {})
-                position_sentiment_data = pos_tf_data.get('market_sentiment', {})
-                
-                current_sentiment = current_sentiment_data.get('sentiment', 'neutral') if current_sentiment_data else 'neutral'
-                position_sentiment = position_sentiment_data.get('sentiment', 'neutral') if position_sentiment_data else 'neutral'
-                
-                if current_sentiment == position_sentiment:
-                    total_score += 2.27
-                    match_details.append(f"✅ {tf} Sentiment eşleşme")
-                total_factors += 1
-                
-                # 9. VOLATİLİTE İNDEKSİ (2.27 puan)
-                current_vol = tf_data.get('volatility', 0) or 0
-                position_vol = pos_tf_data.get('volatility', 0) or 0
-                
-                if abs(current_vol - position_vol) <= 1.0:
-                    total_score += 2.27
-                    match_details.append(f"✅ {tf} Volatilite eşleşme")
-                total_factors += 1
-                
-                # 10. DESTEK/DİRENÇ ANALİZİ (2.27 puan)
-                current_sr = tf_data.get('support_resistance', {})
-                position_sr = pos_tf_data.get('support_resistance', {})
-                
-                # Basit SR karşılaştırma
-                current_sr_pos = 'middle'
-                position_sr_pos = 'middle'
-                
-                if current_sr and current_sr.get('near_support'):
-                    current_sr_pos = 'support'
-                elif current_sr and current_sr.get('near_resistance'):
-                    current_sr_pos = 'resistance'
-                
-                if position_sr and position_sr.get('near_support'):
-                    position_sr_pos = 'support'
-                elif position_sr and position_sr.get('near_resistance'):
-                    position_sr_pos = 'resistance'
-                
-                if current_sr_pos == position_sr_pos:
-                    total_score += 2.27
-                    match_details.append(f"✅ {tf} S/R eşleşme")
-                total_factors += 1
-                
-                # 11. EMİR DEFTERİ BASKISI (2.27 puan)
-                current_ob = tf_data.get('order_book', {})
-                position_ob = pos_tf_data.get('order_book', {})
-                
-                current_ob_imbalance = current_ob.get('imbalance', 'balanced') if current_ob else 'balanced'
-                position_ob_imbalance = position_ob.get('imbalance', 'balanced') if position_ob else 'balanced'
-                
-                if current_ob_imbalance == position_ob_imbalance:
-                    total_score += 2.27
-                    match_details.append(f"✅ {tf} Order Book eşleşme")
-                total_factors += 1
-            
-            # SKOR HESAPLA (max 100)
-            final_score = min(total_score, 100)
-            matched_factors = len(match_details)
-            
-            # KALİTE BELİRLE
-            if final_score >= 80:
-                quality = "EXCELLENT"
-            elif final_score >= 70:
-                quality = "VERY_GOOD"  
-            elif final_score >= 60:
-                quality = "GOOD"
-            elif final_score >= 50:
-                quality = "FAIR"
-            else:
-                quality = "POOR"
-            
-            return {
-                'score': final_score,
-                'quality': quality,
-                'details': ' | '.join(match_details),
-                'factors_matched': matched_factors,
-                'total_possible': 44
-            }
-            
-        except Exception as e:
-            logger.error(f"Match score hesaplama hatası: {e}")
-            return {'score': 0, 'quality': 'ERROR', 'details': 'Hesaplama hatası', 'factors_matched': 0}
-
-    def find_position_match(self, coin_data: Dict, symbol: str) -> Optional[Dict]:
-        """POZİSYON EŞLEŞMESİ BULMA - Orijinal algoritma"""
-        try:
-            if not self.positions_data:
-                return None
-            
-            # TÜM POZİSYONLARI KONTROL ET - ZAMAN FİLTRESİ YOK
-            recent_positions = self.positions_data
-            
-            if not recent_positions:
-                return None
-            
-            # TÜM POZİSYONLAR ARASıNDA ARAMA (Cross-pair)
-            best_match = None
-            best_score = 0
-            matched_coin = None
-            
-            for pos in recent_positions:
-                match_result = self.calculate_match_score(coin_data, pos)
-                score = match_result.get('score', 0)
-                
-                if score > best_score and score >= 75:  # Minimum %75 eşleşme
-                    best_score = score
-                    best_match = pos
-                    best_details = match_result
-                    matched_coin = pos.get('symbol', 'Unknown')
-            
-            if best_match:
-                # Cross-pair formatı: Taranan-Eşleşen
-                cross_pair = f"{symbol.replace('USDT', '')}-{matched_coin.replace('USDT', '')}"
-                
-                # BTC trend durumunu al
-                try:
-                    btc_trend = self.get_current_market_regime()
-                except:
-                    btc_trend = "UNKNOWN"
-                
-                return {
-                    'signal': best_match.get('result', 'LONG').upper(),
-                    'match_percentage': best_score,
-                    'matched_symbol': matched_coin,
-                    'cross_pair': cross_pair,
-                    'position_timestamp': best_match.get('timestamp', ''),
-                    'total_factors': best_details.get('factors_matched', 0),
-                    'match_details': best_details.get('details', ''),
-                    'quality': best_details.get('quality', 'GOOD')
-                }
-            
-            return None
-            
-        except Exception as e:
-            logger.error(f"Pozisyon eşleştirme hatası: {e}")
-            return None
-
-    def analyze_hybrid_signal(self, coin_data: Dict, symbol: str) -> Optional[Dict]:
-        """SADECE POZİSYON EŞLEŞMESİ - trading_positions.json dosyasından - Orijinal sistem"""
-        try:
-            # SADECE POZİSYON EŞLEŞMESİ KONTROL ET
-            position_match = self.find_position_match(coin_data, symbol)
-            
-            if position_match:
-                # Pozisyon eşleştirme bulundu - Orijinal sinyali döndür
-                return position_match
-            else:
-                # Pozisyon eşleştirme yok - Hiç sinyal verme
-                return None
-                
-        except Exception as e:
-            # Hata durumunda sinyal verme
-            logger.error(f"Hybrid signal analizi hatası: {e}")
-            return None
-
-    def get_current_market_regime(self) -> str:
-        """GERÇEK ZAMANLI BTC'den trend tespit et - Orijinal sistem"""
-        try:
-            # Güncel BTC 15m verisi çek (çok kısa vadeli)
-            btc_4h = self.get_candle_data('BTCUSDT', '15m', limit=100)
-            if not btc_4h:
-                return "UNKNOWN"
-                
-            # MA'ları hesapla
-            ma_7 = self.calculate_ma(btc_4h, 7)
-            ma_25 = self.calculate_ma(btc_4h, 25) 
-            ma_99 = self.calculate_ma(btc_4h, 99)
-            
-            if None in [ma_7, ma_25, ma_99]:
-                return "UNKNOWN"
-            
-            # MA sıralaması belirle
-            if ma_7 > ma_25 > ma_99:
-                return "BULL_TREND"
-            elif ma_99 > ma_25 > ma_7:
-                return "BEAR_TREND"
-            else:
-                return "RANGE_MARKET"
-                
-        except:
-            return "UNKNOWN"
-
-    def run_scan(self) -> List[Dict]:
-        """Ana tarama fonksiyonu - Orijinal sistem"""
-        logger.info("🚀 Tarama başlatıldı...")
-        
-        # Debug: Pozisyon verisi kontrolü
-        if not self.positions_data:
-            error_msg = f"❌ Pozisyon verisi yok! trading_positions.json yüklenemedi"
-            logger.error(error_msg)
-            # Telegram'a da gönder
-            self.send_telegram_message(error_msg)
-            return []
-        
-        logger.info(f"✅ {len(self.positions_data)} pozisyon yüklendi")
-        
-        # Debug: API testi
-        crypto_list = self.get_crypto_list()
-        if not crypto_list:
-            error_msg = f"❌ Coin listesi alınamadı! Binance API sorunu"
-            logger.error(error_msg)
-            # Telegram'a da gönder  
-            self.send_telegram_message(error_msg)
-            return []
-            
-        logger.info(f"✅ {len(crypto_list)} coin listesi alındı")
-        
-        matches = []
-        scanned_count = 0
-        
-        logger.info(f"📊 {len(crypto_list)} coin taranacak...")
-        
-        # Debug: İlk 10 coin'i Telegram'a gönder
-        first_coins = crypto_list[:10]
-        self.send_telegram_message(f"🔍 İlk 10 coin: {', '.join(first_coins)}")
-        
-        for symbol in crypto_list:
-            scanned_count += 1
-            
-            # Her 50 coin'de ilerleme raporu
-            if scanned_count % 50 == 0:
-                progress_msg = f"⏳ {scanned_count}/{len(crypto_list)} - {len(matches)} eşleşme"
-                logger.info(progress_msg)
-                self.send_telegram_message(progress_msg)
-            
-            try:
-                # Coin için kapsamlı veri topla (timeout koruması)
-                coin_data = None
-                try:
-                    coin_data = self.get_comprehensive_data(symbol)
-                except:
-                    # API timeout - coin'i atla
-                    continue
-                    
-                if coin_data:
-                    # SADECE POZİSYON EŞLEŞMESİ - Dosyadan
-                    match_result = self.analyze_hybrid_signal(coin_data, symbol)
-                    if match_result and match_result.get('match_percentage', 0) >= 75:  # Minimum %75 eşleşme
-                        matches.append({
-                            'symbol': symbol,
-                            **match_result
-                        })
-                        logger.info(f"✅ Eşleşme bulundu: {symbol} -> {match_result['signal']}")
-                        
-            except Exception as e:
-                logger.debug(f"Coin tarama hatası {symbol}: {e}")
-                continue
-            
-            # Optimize rate limiting - daha hızlı
-            if scanned_count % 10 == 0:
-                time.sleep(1.0)  # 10'da bir 1 saniye bekle
-            else:
-                time.sleep(0.2)  # Normal 0.2 saniye
-        
-        logger.info(f"✅ Tarama tamamlandı: {len(matches)} sinyal bulundu")
-        return matches
-
-    def format_telegram_message(self, matches: List[Dict], market_regime: str) -> str:
-        """Telegram mesajını formatla - Geliştirilmiş"""
-        timestamp = datetime.now().strftime("%H:%M")
-        
-        if not matches:
-            message = f"🤖 <b>Crypto Bot - {timestamp}</b>\n\n"
-            message += f"📊 <b>Market:</b> {market_regime}\n"
-            message += f"🔍 <b>Tarama:</b> 500 coin\n"
-            message += f"📈 <b>Sonuç:</b> Sinyal bulunamadı\n\n"
-            message += "⚠️ Tüm kriterler kontrol edildi ama uygun eşleşme yok.\n"
-            message += "44 faktör sistemi - %75+ eşleşme gerekli.\n"
-            message += "Bir sonraki tarama: 40 dakika içinde"
-            return message
-        
-        # En iyi 5 sinyali göster
-        top_matches = sorted(matches, key=lambda x: x['match_percentage'], reverse=True)[:5]
-        
-        message = f"🤖 <b>Crypto Bot - {timestamp}</b>\n\n"
-        message += f"📊 <b>Market:</b> {market_regime}\n"
-        message += f"🔍 <b>Tarama:</b> 500 coin\n"
-        message += f"🎯 <b>Sinyal:</b> {len(matches)} eşleşme (44-faktör)\n\n"
-        
-        for i, match in enumerate(top_matches, 1):
-            signal_emoji = "🟢" if match['signal'] == 'LONG' else "🔴"
-            
-            message += f"{signal_emoji} <b>{i}. {match['symbol']}</b>\n"
-            message += f"   📈 <b>{match['signal']}</b> (%{match['match_percentage']:.1f})\n"
-            message += f"   🔗 {match['cross_pair']}\n"
-            message += f"   ⭐ {match['quality']} ({match['total_factors']} faktör)\n\n"
-        
-        if len(matches) > 5:
-            message += f"... ve {len(matches) - 5} sinyal daha\n\n"
-        
-        message += f"📋 <b>Son 24h özet:</b>\n"
-        
-        # Signal özeti
-        long_signals = sum(1 for m in matches if m['signal'] == 'LONG')
-        short_signals = sum(1 for m in matches if m['signal'] == 'SHORT')
-        
-        message += f"   🟢 LONG: {long_signals} sinyal\n"
-        message += f"   🔴 SHORT: {short_signals} sinyal\n"
-        message += f"   🎯 Ortalama eşleşme: %{sum(m['match_percentage'] for m in matches)/len(matches):.1f}\n\n"
-        
-        message += "⚠️ <i>Bu sinyaller tamamen otomatik ve eğitim amaçlıdır. Yatırım tavsiyesi değildir.</i>"
-        
-        return message
-
-    def save_results_log(self, matches: List[Dict]):
-        """Sonuçları log dosyasına kaydet - Orijinal sistem"""
-        try:
-            log_entry = {
-                'timestamp': datetime.now().isoformat(),
-                'matches_count': len(matches),
-                'matches': matches
-            }
-            
-            # JSON log dosyasına ekle
-            log_file = 'scan_results.json'
-            logs = []
-            
-            try:
-                with open(log_file, 'r') as f:
-                    logs = json.load(f)
-            except FileNotFoundError:
-                pass
-            
-            logs.append(log_entry)
-            
-            # Son 100 kaydı tut (dosya büyümesin)
-            if len(logs) > 100:
-                logs = logs[-100:]
-            
-            with open(log_file, 'w') as f:
-                json.dump(logs, f, indent=2)
-                
-            logger.info(f"📋 Sonuçlar {log_file} dosyasına kaydedildi")
-            
-        except Exception as e:
-            logger.error(f"❌ Log kaydetme hatası: {e}")
 
 def main():
     """Ana fonksiyon"""
     try:
+        logger.info("🤖 Crypto Trading Bot başlatılıyor...")
+        
         # Bot'u başlat
         bot = CryptoBotGitHub()
         
         # Market durumunu al
-        market_regime = bot.get_current_market_regime()
-        logger.info(f"📊 Market durumu: {market_regime}")
+        logger.info("📊 Market durumu analiz ediliyor...")
         
-        # Tarama yap
-        start_time = time.time()
-        matches = bot.run_scan()
-        scan_duration = time.time() - start_time
-        
-        logger.info(f"⏱️ Tarama süresi: {scan_duration:.1f} saniye")
-        
-        # Sonuçları kaydet
-        bot.save_results_log(matches)
-        
-        # Telegram mesajı gönder
-        message = bot.format_telegram_message(matches, market_regime)
-        success = bot.send_telegram_message(message)
+        # Basit test mesajı gönder
+        test_msg = "🤖 <b>Bot Test</b>\n\n📊 Bot başlatıldı ve çalışıyor!\n⏰ " + datetime.now().strftime("%H:%M:%S")
+        success = bot.send_telegram_message(test_msg)
         
         if success:
-            logger.info("✅ Bot çalışması başarıyla tamamlandı")
+            logger.info("✅ Bot başarıyla çalışmaya başladı")
         else:
             logger.error("❌ Telegram mesajı gönderilemedi")
             return 1
@@ -1041,14 +201,6 @@ def main():
     except Exception as e:
         error_msg = f"❌ Bot hatası: {str(e)}\n\n{traceback.format_exc()}"
         logger.error(error_msg)
-        
-        # Hata mesajını da Telegram'a göndermeyi dene
-        try:
-            bot = CryptoBotGitHub()
-            bot.send_telegram_message(f"🚨 <b>Bot Hatası</b>\n\n<pre>{str(e)[:500]}</pre>")
-        except:
-            pass
-        
         return 1
 
 if __name__ == "__main__":
