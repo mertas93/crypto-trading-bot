@@ -218,10 +218,12 @@ def main():
           # Hata mesajını da Telegram'a göndermeyi dene
           try:
               bot = CryptoBotGitHub()
-              bot.send_telegram_message(f"🚨 <b>Bot 
-  Hatası</b>\n\n<pre>{str(e)[:400]}</pre>")
-          except:
-              pass
+            # Hata mesajını da Telegram'a göndermeyi dene
+      try:
+          bot_error = CryptoBotGitHub()
+          bot_error.send_telegram_message("🚨 Bot Hatası oluştu!")
+      except:
+          pass
 
           return 1
 
