@@ -219,6 +219,32 @@ class CryptoBotGitHub:
             return None
         return sum(closes[-period:]) / period
 
+    def get_ma_order(self, closes: List[float]) -> List[int]:
+        """MA sıralamasını belirle - Büyükten küçüğe sıralı"""
+        try:
+            if len(closes) < 99:
+                return []
+            
+            # MA değerlerini hesapla
+            ma_7 = self.calculate_ma(closes, 7)
+            ma_25 = self.calculate_ma(closes, 25)
+            ma_99 = self.calculate_ma(closes, 99)
+            
+            if None in [ma_7, ma_25, ma_99]:
+                return []
+            
+            # MA değerlerini sırala (büyükten küçüğe)
+            values = [
+                (7, ma_7),
+                (25, ma_25), 
+                (99, ma_99)
+            ]
+            values.sort(key=lambda x: x[1], reverse=True)
+            return [v[0] for v in values]
+            
+        except:
+            return []
+
     def calculate_rsi(self, closes: List[float], period: int = 14) -> Optional[float]:
         """RSI hesapla - Orijinal sistem"""
         if len(closes) < period + 1:
