@@ -539,66 +539,109 @@ class CryptoBotGitHub:
         return [v[0] for v in values]
 
     def get_comprehensive_data(self, symbol: str) -> Optional[Dict]:
-        """Coin için kapsamlı teknik veri topla - Orijinal sistem"""
+        """Coin için kapsamlı teknik veri topla - TIMEOUT KORUNMALI"""
         try:
             all_data = {}
             
-            # Market verileri
-            funding_rate = self.get_funding_rate(symbol)
-            stats_24h = self.get_24h_stats(symbol)
-            btc_data = self.get_btc_data()
-            order_book = self.get_order_book_pressure(symbol)
+            # Market verileri - TIMEOUT KORUNMALI
+            try:
+                funding_rate = self.get_funding_rate(symbol)
+            except:
+                funding_rate = None
+                
+            try:
+                stats_24h = self.get_24h_stats(symbol)
+            except:
+                stats_24h = None
+                
+            try:
+                btc_data = self.get_btc_data()
+            except:
+                btc_data = None
+                
+            try:
+                order_book = self.get_order_book_pressure(symbol)
+            except:
+                order_book = None
             
             # Market sentiment (cache'le)
-            if self.market_sentiment is None:
-                self.market_sentiment = self.get_market_sentiment()
+            try:
+                if self.market_sentiment is None:
+                    self.market_sentiment = self.get_market_sentiment()
+            except:
+                self.market_sentiment = None
             
+            # TIMEFRAME VERİ TOPLAMA - EN AZ 2 TIMEFRAME YETER
+            successful_timeframes = 0
             for timeframe in self.timeframes:
-                closes = self.get_candle_data(symbol, timeframe, limit=100)
-                if not closes:
-                    continue
-                
-                # BTC korelasyonu hesapla
-                btc_correlation = None
-                if btc_data and symbol != 'BTCUSDT':
-                    btc_correlation = self.calculate_btc_correlation(closes, btc_data)
-                
-                # Ek teknik analizler
-                volatility = self.get_volatility_index(closes)
-                
-                # High/Low verileri için basit yaklaşım (close'dan tahmin)
-                highs = [c * 1.01 for c in closes]  # Close'un %1 üstü
-                lows = [c * 0.99 for c in closes]   # Close'un %1 altı
-                support_resistance = self.get_support_resistance(closes, highs, lows)
-                
-                # Tüm teknik indikatörleri hesapla
-                timeframe_data = {
-                    'ma_7': self.calculate_ma(closes, 7),
-                    'ma_25': self.calculate_ma(closes, 25), 
-                    'ma_99': self.calculate_ma(closes, 99),
-                    'rsi': self.calculate_rsi(closes),
-                    'macd': self.calculate_macd(closes),
-                    'bollinger': self.calculate_bollinger_bands(closes),
-                    'stoch_rsi': self.calculate_stoch_rsi(closes),
-                    'volume_avg': np.mean(closes[-20:]) if len(closes) >= 20 else None,
-                    'price_current': closes[-1],
-                    'ma_order': self.analyze_candle_values(closes),
+                try:
+                    closes = self.get_candle_data(symbol, timeframe, limit=100)
+                    if not closes:
+                        continue
                     
-                    # YENİ MARKET FAKTÖRLER
-                    'funding_rate': funding_rate,
-                    'stats_24h': stats_24h,
-                    'btc_correlation': btc_correlation,
-                    'market_sentiment': self.market_sentiment,
-                    
-                    # SÜPER YENİ FAKTÖRLER
-                    'volatility': volatility,
-                    'support_resistance': support_resistance,
-                    'order_book': order_book
-                }
+                    successful_timeframes += 1
+                    logger.debug(f"📊 {symbol} {timeframe}: {len(closes)} candle alındı")
                 
-                all_data[timeframe] = timeframe_data
+                    # BTC korelasyonu hesapla
+                    btc_correlation = None
+                    if btc_data and symbol != 'BTCUSDT':
+                        try:
+                            btc_correlation = self.calculate_btc_correlation(closes, btc_data)
+                        except:
+                            btc_correlation = None
+                    
+                    # Ek teknik analizler
+                    try:
+                        volatility = self.get_volatility_index(closes)
+                    except:
+                        volatility = None
+                    
+                    try:
+                        # High/Low verileri için basit yaklaşım (close'dan tahmin)
+                        highs = [c * 1.01 for c in closes]  # Close'un %1 üstü
+                        lows = [c * 0.99 for c in closes]   # Close'un %1 altı
+                        support_resistance = self.get_support_resistance(closes, highs, lows)
+                    except:
+                        support_resistance = None
+                    
+                    # Tüm teknik indikatörleri hesapla - HATA KORUNMALI
+                    timeframe_data = {
+                        'ma_7': self.calculate_ma(closes, 7),
+                        'ma_25': self.calculate_ma(closes, 25), 
+                        'ma_99': self.calculate_ma(closes, 99),
+                        'rsi': self.calculate_rsi(closes) if len(closes) > 15 else None,
+                        'macd': self.calculate_macd(closes) if len(closes) > 26 else None,
+                        'bollinger': self.calculate_bollinger_bands(closes) if len(closes) > 20 else None,
+                        'stoch_rsi': self.calculate_stoch_rsi(closes) if len(closes) > 28 else None,
+                        'volume_avg': np.mean(closes[-20:]) if len(closes) >= 20 else None,
+                        'price_current': closes[-1],
+                        'ma_order': self.analyze_candle_values(closes),
+                        
+                        # YENİ MARKET FAKTÖRLER
+                        'funding_rate': funding_rate,
+                        'stats_24h': stats_24h,
+                        'btc_correlation': btc_correlation,
+                        'market_sentiment': self.market_sentiment,
+                        
+                        # SÜPER YENİ FAKTÖRLER
+                        'volatility': volatility,
+                        'support_resistance': support_resistance,
+                        'order_book': order_book
+                    }
+                    
+                    all_data[timeframe] = timeframe_data
+                    
+                except Exception as e:
+                    logger.debug(f"❌ {symbol} {timeframe} hatası: {e}")
+                    continue  # Bu timeframe'i atla, diğerini dene
             
-            return all_data
+            # En az 2 timeframe başarılı olması gerekli
+            if successful_timeframes >= 2:
+                logger.debug(f"✅ {symbol}: {successful_timeframes}/4 timeframe başarılı")
+                return all_data
+            else:
+                logger.debug(f"❌ {symbol}: Sadece {successful_timeframes}/4 timeframe - yetersiz veri")
+                return None
         except Exception as e:
             return None
 
