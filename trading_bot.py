@@ -29,9 +29,15 @@ class TradingAnalyzer:
         self.data_file = os.path.join(os.path.expanduser("~"), "crypto_trading_data.json")
         self.positions_file = os.path.join(os.path.expanduser("~"), "trading_positions.json")
         
-        # API ayarları
+        # API ayarları - Alternatif API'ler
         self.binance_api = "https://api.binance.com/api/v3/klines"
         self.binance_futures_api = "https://fapi.binance.com/fapi/v1"
+        # Yedek API'ler
+        self.alternative_apis = [
+            "https://api1.binance.com/api/v3/klines",
+            "https://api2.binance.com/api/v3/klines", 
+            "https://api3.binance.com/api/v3/klines"
+        ]
         self.timeframes = ["1m", "3m", "5m", "30m"]
         self.scanning = False
         
@@ -598,25 +604,82 @@ class TradingAnalyzer:
         return fallback_coins
     
     def get_candle_data(self, symbol, timeframe, limit=100):
-        """Belirli coin ve timeframe için mum verisi al (MA hesabı için 100 mum) - retry ile"""
-        for attempt in range(3):  # 3 deneme
-            try:
-                params = {
-                    'symbol': symbol,
-                    'interval': timeframe,
-                    'limit': limit
-                }
-                response = requests.get(self.binance_api, params=params, timeout=15)
-                data = response.json()
-                
-                if len(data) >= 99:  # MA99 için en az 99 mum gerekli
-                    closes = [float(candle[4]) for candle in data]
-                    return closes
+        """Belirli coin ve timeframe için mum verisi al - çoklu API desteği"""
+        
+        # Tüm API'leri dene
+        all_apis = [self.binance_api] + self.alternative_apis
+        
+        for api_url in all_apis:
+            for attempt in range(2):  # Her API için 2 deneme
+                try:
+                    params = {
+                        'symbol': symbol,
+                        'interval': timeframe,
+                        'limit': limit
+                    }
+                    
+                    # Headers ekle - bazı proxy/CDN'ler için
+                    headers = {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                        'Accept': 'application/json',
+                    }
+                    
+                    response = requests.get(api_url, params=params, headers=headers, timeout=10)
+                    
+                    # Durum kodu kontrolü
+                    if response.status_code == 200:
+                        data = response.json()
+                        
+                        if isinstance(data, list) and len(data) >= 50:  # En az 50 mum yeterli
+                            closes = [float(candle[4]) for candle in data]
+                            return closes
+                    
+                    elif response.status_code == 451:
+                        # IP engellendi, bir sonraki API'yi dene
+                        break
+                        
+                except Exception as e:
+                    if attempt == 1:  # Son deneme
+                        print(f"   API hatası ({api_url}): {str(e)}")
+                    continue
+                    
+        # Hiçbir API çalışmadı - CoinGecko alternatifi dene
+        return self.get_coingecko_data(symbol, timeframe, limit)
+    
+    def get_coingecko_data(self, symbol, timeframe, limit):
+        """CoinGecko API'den veri al - yedek sistem"""
+        try:
+            # Coin adını dönüştür (BTCUSDT -> bitcoin)
+            coin_map = {
+                'BTCUSDT': 'bitcoin', 'ETHUSDT': 'ethereum', 'BNBUSDT': 'binancecoin',
+                'XRPUSDT': 'ripple', 'ADAUSDT': 'cardano', 'DOGEUSDT': 'dogecoin',
+                'SOLUSDT': 'solana', 'MATICUSDT': 'polygon', 'DOTUSDT': 'polkadot',
+                'LTCUSDT': 'litecoin', 'AVAXUSDT': 'avalanche-2', 'LINKUSDT': 'chainlink'
+            }
+            
+            if symbol not in coin_map:
                 return None
-            except:
-                if attempt < 2:  # Son denemede değilse bekle
-                    threading.Event().wait(1)  # 1 saniye bekle
-                continue
+                
+            coin_id = coin_map[symbol]
+            
+            # CoinGecko API - son 30 gün fiyat verisi
+            url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
+            params = {'vs_currency': 'usd', 'days': '1', 'interval': 'hourly'}
+            
+            response = requests.get(url, params=params, timeout=15)
+            
+            if response.status_code == 200:
+                data = response.json()
+                prices = data.get('prices', [])
+                
+                if len(prices) >= 20:
+                    # Sadece fiyatları al
+                    closes = [float(price[1]) for price in prices[-limit:]]
+                    return closes
+                    
+        except Exception as e:
+            print(f"   CoinGecko hatası: {str(e)}")
+            
         return None
     
     def calculate_ma(self, closes, period):
