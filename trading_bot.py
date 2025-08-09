@@ -87,8 +87,16 @@ class CryptoBotGitHub:
             return False
 
     def get_crypto_list(self) -> List[str]:
-        # GitHub Actions IP engelleniyor - sabit coin listesi kullan
-        logger.info("Using hardcoded coin list (GitHub Actions IP blocked)")
+        # Önce Binance bypass dene, başarısızsa hardcoded liste kullan
+        logger.info("🔄 Binance API bypass deneniyor...")
+        
+        binance_list = self.get_crypto_list_original()
+        if binance_list:
+            logger.info(f"✅ Binance bypass başarılı - {len(binance_list)} coin")
+            return binance_list
+            
+        # Binance bypass başarısız - hardcoded liste kullan
+        logger.info("⚠️ Binance bypass başarısız - hardcoded coin listesi kullanılıyor")
         
         # Top 500 USDT çifti - volume bazlı sıralama (tekrarsız)
         major_coins = [
@@ -166,51 +174,163 @@ class CryptoBotGitHub:
         return top_coins
 
     def get_crypto_list_original(self) -> List[str]:
-        """Binance'den USDT çiftlerini al - Orijinal sistem"""
-        try:
-            response = requests.get("https://api.binance.com/api/v3/exchangeInfo", timeout=10)
-            response.raise_for_status()
-            data = response.json()
-            
-            usdt_pairs = []
-            for symbol in data['symbols']:
-                if (symbol['symbol'].endswith('USDT') and 
-                    symbol['status'] == 'TRADING' and 
-                    symbol['symbol'] not in ['USDCUSDT', 'TUSDUSDT']):
-                    usdt_pairs.append(symbol['symbol'])
-            
-            # İlk 500 coin'i al ve major coinleri öncelikle
-            major_coins = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'SOLUSDT']
-            prioritized = major_coins + [coin for coin in usdt_pairs if coin not in major_coins]
-            
-            return prioritized[:500]
-        except Exception as e:
-            logger.error(f"❌ Coin listesi alma hatası: {e}")
-            return []
+        """Binance'den USDT çiftlerini al - Bypass teknikleri ile"""
+        
+        # Farklı endpoint'ler ve header kombinasyonları
+        endpoints = [
+            'https://api.binance.com/api/v3/exchangeInfo',
+            'https://api1.binance.com/api/v3/exchangeInfo', 
+            'https://api2.binance.com/api/v3/exchangeInfo',
+            'https://api3.binance.com/api/v3/exchangeInfo'
+        ]
+        
+        headers_list = [
+            {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'application/json',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Referer': 'https://www.binance.com/'
+            },
+            {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15',
+                'Accept': 'application/json',
+                'Accept-Language': 'en-us'
+            },
+            {
+                'User-Agent': 'python-requests/2.28.1',
+                'Accept': 'application/json'
+            }
+        ]
+        
+        for endpoint in endpoints:
+            for headers in headers_list:
+                try:
+                    logger.info(f"🔄 Binance exchange info bypass deneniyor...")
+                    
+                    response = requests.get(endpoint, headers=headers, timeout=15)
+                    if response.status_code == 200:
+                        data = response.json()
+                        
+                        usdt_pairs = []
+                        for symbol in data['symbols']:
+                            if (symbol['symbol'].endswith('USDT') and 
+                                symbol['status'] == 'TRADING' and 
+                                symbol['symbol'] not in ['USDCUSDT', 'TUSDUSDT']):
+                                usdt_pairs.append(symbol['symbol'])
+                        
+                        if len(usdt_pairs) > 100:  # Yeterli coin varsa
+                            # Major coinleri öncelikle
+                            major_coins = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'SOLUSDT']
+                            prioritized = major_coins + [coin for coin in usdt_pairs if coin not in major_coins]
+                            
+                            logger.info(f"✅ Binance bypass başarılı - {len(prioritized[:500])} coin")
+                            return prioritized[:500]
+                    
+                    elif response.status_code == 429:
+                        logger.warning("⏳ Rate limit - bekleniyor...")
+                        time.sleep(3)
+                        continue
+                        
+                except Exception as e:
+                    logger.debug(f"❌ Bypass denemesi başarısız: {e}")
+                    continue
+                    
+                time.sleep(1)  # Denemeler arası bekleme
+        
+        logger.warning("❌ Tüm Binance bypass yöntemleri başarısız - hardcoded liste kullanılıyor")
+        return []
 
     def get_candle_data(self, symbol: str, timeframe: str, limit: int = 100) -> Optional[List[float]]:
-        """Mum verisi al - retry mekanizmalı - Orijinal sistem"""
-        for attempt in range(3):
-            try:
-                params = {
-                    'symbol': symbol,
-                    'interval': timeframe,
-                    'limit': limit
+        """Mum verisi al - GitHub Actions IP engeli bypass"""
+        
+        # Binance bypass teknikleri
+        bypass_methods = [
+            {
+                'name': 'Standard Headers',
+                'headers': {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    'Accept': 'application/json',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'Accept-Encoding': 'gzip, deflate, br',
+                    'Connection': 'keep-alive',
+                    'Upgrade-Insecure-Requests': '1'
                 }
-                response = requests.get(self.binance_api, params=params, timeout=15)
-                response.raise_for_status()
-                data = response.json()
-                
-                if len(data) >= 99:  # MA99 için minimum
-                    closes = [float(candle[4]) for candle in data]
-                    return closes
-                return None
-            except Exception as e:
-                if attempt < 2:
-                    time.sleep(1)
+            },
+            {
+                'name': 'Mobile Headers',
+                'headers': {
+                    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15',
+                    'Accept': 'application/json,*/*',
+                    'Accept-Language': 'en-us',
+                    'Accept-Encoding': 'gzip, deflate, br'
+                }
+            },
+            {
+                'name': 'API Client Headers',
+                'headers': {
+                    'User-Agent': 'python-requests/2.28.1',
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-MBX-APIKEY': '',  # Boş API key
+                    'Cache-Control': 'no-cache'
+                }
+            }
+        ]
+        
+        # Farklı endpoint'ler dene
+        endpoints = [
+            'https://api.binance.com/api/v3/klines',
+            'https://api1.binance.com/api/v3/klines',
+            'https://api2.binance.com/api/v3/klines',
+            'https://api3.binance.com/api/v3/klines'
+        ]
+        
+        params = {
+            'symbol': symbol,
+            'interval': timeframe,
+            'limit': limit
+        }
+        
+        for endpoint in endpoints:
+            for method in bypass_methods:
+                try:
+                    logger.debug(f"🔄 Binance bypass: {method['name']} - {endpoint}")
+                    
+                    response = requests.get(
+                        endpoint, 
+                        params=params,
+                        headers=method['headers'],
+                        timeout=10,
+                        verify=True  # SSL doğrulama
+                    )
+                    
+                    if response.status_code == 200:
+                        data = response.json()
+                        if len(data) >= 99:
+                            closes = [float(candle[4]) for candle in data]
+                            logger.info(f"✅ Binance bypass başarılı: {method['name']}")
+                            return closes
+                    
+                    # Rate limit durumunda bekle
+                    elif response.status_code == 429:
+                        logger.warning(f"⏳ Rate limit - 2 saniye bekleniyor...")
+                        time.sleep(2)
+                        continue
+                        
+                except requests.exceptions.Timeout:
+                    logger.debug(f"⏰ Timeout: {method['name']}")
                     continue
-                logger.debug(f"Mum verisi alma hatası {symbol}: {e}")
-                return None
+                except requests.exceptions.ConnectionError:
+                    logger.debug(f"🔌 Connection error: {method['name']}")
+                    continue
+                except Exception as e:
+                    logger.debug(f"❌ {method['name']} error: {e}")
+                    continue
+                    
+                # Denemeler arası kısa bekleme
+                time.sleep(0.5)
+        
+        logger.debug(f"❌ Tüm Binance bypass yöntemleri başarısız: {symbol}")
         return None
 
     def calculate_ma(self, closes: List[float], period: int) -> Optional[float]:
