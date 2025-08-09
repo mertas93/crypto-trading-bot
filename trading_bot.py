@@ -487,8 +487,14 @@ class TradingAnalyzer:
     def get_crypto_list(self):
         """Binance'den tüm USDT çiftlerini al"""
         try:
-            response = requests.get("https://api.binance.com/api/v3/exchangeInfo", timeout=10)
+            response = requests.get("https://api.binance.com/api/v3/exchangeInfo", timeout=15)
+            response.raise_for_status()
             data = response.json()
+            
+            # Debug: API yanıtını kontrol et
+            if 'symbols' not in data:
+                print(f"API yanıtı beklenen formatta değil: {list(data.keys())}")
+                return self.get_fallback_coin_list()
             
             usdt_pairs = []
             for symbol in data['symbols']:
@@ -497,10 +503,99 @@ class TradingAnalyzer:
                     symbol['symbol'] not in ['USDCUSDT', 'TUSDUSDT']):
                     usdt_pairs.append(symbol['symbol'])
             
-            return usdt_pairs[:500]  # İlk 500 coin
+            if len(usdt_pairs) > 0:
+                print(f"✅ {len(usdt_pairs)} coin listesi alındı")
+                return usdt_pairs[:500]  # İlk 500 coin
+            else:
+                print("❌ USDT çifti bulunamadı")
+                return self.get_fallback_coin_list()
+                
         except Exception as e:
-            self.update_status(f"Coin listesi alınamadı: {str(e)}")
-            return []
+            print(f"❌ API hatası: {str(e)}")
+            self.update_status(f"API hatası: {str(e)} - Fallback liste kullanılıyor")
+            return self.get_fallback_coin_list()
+    
+    def get_fallback_coin_list(self):
+        """API hatası durumunda kullanılacak kapsamlı coin listesi"""
+        fallback_coins = [
+            # Top 50 Major Coins
+            'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'DOGEUSDT', 'SOLUSDT', 'MATICUSDT', 'DOTUSDT', 'LTCUSDT',
+            'AVAXUSDT', 'LINKUSDT', 'ATOMUSDT', 'UNIUSDT', 'FILUSDT', 'TRXUSDT', 'ETCUSDT', 'XLMUSDT', 'VETUSDT', 'ICXUSDT',
+            'ONTUSDT', 'NEOUSDT', 'QTUMUSDT', 'ZILUSDT', 'BATUSDT', 'ZECUSDT', 'DASHUSDT', 'ENJUSDT', 'MANAUSDT', 'SANDUSDT',
+            'AXSUSDT', 'CHZUSDT', 'FTMUSDT', 'NEARUSDT', 'AAVEUSDT', 'COMPUSDT', 'MKRUSDT', 'YFIUSDT', 'SUSHIUSDT', 'CRVUSDT',
+            'ONEUSDT', 'HOTUSDT', 'ALGOUSDT', 'ZILUSDT', 'KAVAUSDT', 'BANDUSDT', 'RLCUSDT', 'NMRUSDT', 'STORJUSDT', 'KNCUSDT',
+            
+            # DeFi Tokens
+            'CAKEUSDT', '1INCHUSDT', 'ALPACAUSDT', 'BAKEUSDT', 'BURGERUSDT', 'XVSUSDT', 'SXPUSDT', 'CFXUSDT', 'TLMUSDT', 'IDUSDT',
+            'DFUSDT', 'FIDAUSDT', 'FRONTUSDT', 'MDTUSDT', 'STMXUSDT', 'DENTUSDT', 'KEYUSDT', 'HARDUSDT', 'STRAXUSDT', 'UNFIUSDT',
+            'ROSEUSDT', 'AVAUSDT', 'XEMUSDT', 'AUCTIONUSDT', 'TVKUSDT', 'BADGERUSDT', 'FISUSDT', 'OMUSDT', 'PONDUSDT', 'DEGOUSDT',
+            'ALICEUSDT', 'LINAUSDT', 'PERPUSDT', 'RAMPUSDT', 'SUPERUSDT', 'CFXUSDT', 'EPSUSDT', 'AUTOUSDT', 'TKOUSDT', 'PUNDIXUSDT',
+            'TLMUSDT', 'BTCSTUSDT', 'TRUUSDT', 'CKBUSDT', 'TWTUSDT', 'FIROUSDT', 'LITUSDT', 'SFPUSDT', 'DODOUSDT', 'CAKEUSDT',
+            
+            # Gaming & NFT
+            'AXSUSDT', 'SLPUSDT', 'SANDUSDT', 'MANAUSDT', 'ENJUSDT', 'CHZUSDT', 'FLOWUSDT', 'IMXUSDT', 'GALUSDT', 'CITYUSDT',
+            'LRCUSDT', 'NMRUSDT', 'REQUSDT', 'AMPUSDT', 'RNDRUSE', 'AUDIOUSDT', 'CTSIUSDT', 'FETUSDT', 'NUUSDT', 'IOTXUSDT',
+            'AGIXUSDT', 'PHAUSDT', 'OCEANUSDT', 'RAYUSDT', 'FARMINGUSDT', 'ALPINUSDT', 'ASRUSDT', 'ATMUSDT', 'BARUSDT', 'PSGSUSDT',
+            'ACMUSDT', 'JUVUSDT', 'PORTOUSDT', 'SANTOSUSDT', 'IBFKUSDT', 'OGNUSDT', 'NKNUSDT', 'SCUSDT', 'GTCUSDT', 'ADXUSDT',
+            'CLVUSDT', 'QNTUSDT', 'FLOWUSDT', 'MINAUSDT', 'FARMUSDT', 'REQUSDT', 'WAXPUSDT', 'GNOUSDT', 'XECUSDT', 'ELFUSDT',
+            
+            # Layer 2 & Scaling
+            'MATICUSDT', 'OPUSDT', 'ARBUSDT', 'LDOUSDT', 'STGUSDT', 'METISUSDT', 'BLOBUSDT', 'GALAUSDT', 'APESUSDT', 'JASMYUSDT',
+            'DARUSDT', 'OPUSDT', 'GMXUSDT', 'MAGICUSDT', 'STGUSDT', 'RDNTUSDT', 'HFT USDT', 'PHBUSDT', 'HOOKUSDT', 'MAGICUSDT',
+            'ARBUSDT', 'JOBTUSDT', 'STGUSDT', 'ARKMUSDT', 'WLDUSDT', 'PENDLEUSDT', 'ARKMUSDT', 'CYBERUSDT', 'MAVUSDT', 'TWTUSDT',
+            'SPACEUSDT', 'VELTUSDT', 'BLURUSDT', 'VANRYUSDT', 'JTOUSDT', 'ACEUSDT', 'NFPUSDT', 'AIUSDT', 'XAIUSDT', 'MANTAUSDT',
+            'ALTUSDT', 'PYTHUSDT', 'RONINUSDT', 'DYMUSDT', 'PIXELUSDT', 'STRKSUSDT', 'PORTALUSDT', 'PDAUSDT', 'AXLUSDT', 'WIFUSDT',
+            
+            # Meme Coins
+            'DOGEUSDT', 'SHIBUSDT', 'FLOKIUSDT', 'PEPEUSDT', '1000PEPEUSDT', 'BONKUSDT', 'RATSUSDT', '1000SATSUSDT', 'ORDIUSDT', 'WIFUSDT',
+            'BOMEUSDT', 'MEMEUSDT', 'NOTUSDT', 'DOGUSDT', 'TURBORUSDT', 'BABYDOGEUSDT', '1000BONKUSDT', 'WIFHATUSDT', 'POPUSDT', 'MYOUSDT',
+            
+            # AI & Tech
+            'FETUSDT', 'AGIXUSDT', 'OCEANUSDT', 'RNDRUSE', 'THETAUSDT', 'GRTUSDT', 'AIUSDT', 'PHAUSDT', 'CTXCUSDT', 'ARKMUSDT',
+            'NUUSDT', 'CTSIUSDT', 'MDTUSDT', 'DATAUSDT', 'ORIGNUSDT', 'QNTUSDT', 'VITEUSDT', 'ARDRUSDT', 'NULSUSDT', 'POWRUSDT',
+            
+            # Infrastructure
+            'ATOMUSDT', 'DOTUSDT', 'AVAXUSDT', 'NEARUSDT', 'FTMUSDT', 'ADAUSDT', 'ALGOUSDT', 'HBARUSDT', 'KSMUSDT', 'RUNEUSDT',
+            'LUNAUSDT', 'WAVESUSDT', 'EGLDUSDT', 'ZILUSDT', 'QTUMSD', 'ONTUSDT', 'ICXUSDT', 'IOTAUSDT', 'SCUSDT', 'ZENUSDT',
+            
+            # Exchange Tokens
+            'BNBUSDT', 'FTTUSDT', 'CROUSdt', 'KCSUSDT', 'HTUSDT', 'OKBUSD', 'LEXUSDT', 'BTTUSDT', 'WINUSDT', 'TRXUSDT',
+            
+            # Stablecoins & Wrapped
+            'WBTCUSDT', 'STETHUSDT', 'FDUSDUSDT', 'TUSDUSDT', 'USTCUSDT',
+            
+            # New & Trending
+            'JUPUSDТ', 'TNЕRUSDT', 'DYMUSDT', 'SEIUSDT', 'TIAUSDT', 'ORDIUSDT', 'BEAMUSDT', 'PIVXUSDT', 'VICUSDT', 'BURGERUSDT',
+            'BLURUSDT', 'VANRYUSDT', 'JTOUSDT', 'ACEUSDT', 'NFPUSDT', 'AIUSDT', 'XAIUSDT', 'MANTAUSDT', 'ALTUSDT', 'PYTHUSDT',
+            'RONINUSDT', 'DYMUSDT', 'PIXELUSDT', 'STRKSUSDT', 'PORTALUSDT', 'PDAUSDT', 'AXLUSDT', 'ETHFIUSDT', 'ENAПUSDT', 'WUSDT',
+            'TNSRUSDT', 'SAGAUSDT', 'TAOUSDT', 'OMNIUSDT', 'REZUSDT', 'BBUSDT', 'NOTUSDT', 'TURKNUSDT', 'IOUSDT', 'ZKUSDT',
+            'LISUSDT', 'ZROUSDT', 'GUSDT', 'BANAUSDT', 'FURIUSDT', 'SUNUSDT', 'DOGSUSDT', 'TONUSDT', 'CATUSDT', 'POPCATUSDT',
+            
+            # Additional Popular Pairs
+            'SOLUSDT', 'UNIUSDT', 'FILUSDT', 'LINKUSDT', 'XLMUSDT', 'VETUSDT', 'TRXUSDT', 'ETCUSDT', 'XMRUSDT', 'DASHUSDT',
+            'ZECUSDT', 'RVNUSDT', 'DIGУСDT', 'SCUSDT', 'BCHUSDT', 'BSVUSDT', 'ADXUSDT', 'AMBUSDT', 'APPCUSDT', 'ARDRUSDT',
+            'ARNUSDT', 'ARPAUSDT', 'ASSTRUSDT', 'ASTRUSDT', 'ATAUSDT', 'ATMUSDT', 'AUDUSDT', 'AVAUSDT', 'BAKEUSDT', 'BALUSDT',
+            'BANDUSDT', 'BARUSDT', 'BATUSDT', 'BCDUSDT', 'BCHUSDT', 'BEAMUSDT', 'BELUSDT', 'BETAUSDT', 'BIFIUSDT', 'BLZUSDT',
+            'BNTUSDT', 'BNXUSDT', 'BRDUSDT', 'BSWUSDT', 'BTSUSDT', 'BTZUSDT', 'BURGERСT', 'BURNUSDT', 'BZRXUSDT', 'CHRST',
+            'CHRUSDT', 'CKBUSDT', 'CMTUSDT', 'COCOSUSDT', 'COMUSDT', 'COSUSDT', 'COTUSDT', 'COTIUSDT', 'CTCUSDT', 'CVCУСDT',
+            'CVPUSDT', 'DATAUSDT', 'DCRСDT', 'DENTUSDT', 'DGBUSDT', 'DIABUSDT', 'DOCKUSDT', 'DUSKUSDT', 'DYDXUSDT', 'FISUSDT',
+            'FORUSDT', 'FUELИSDT', 'GALAUSDT', 'GLMRUSDT', 'GLMUSDT', 'GRIMUSDT', 'GТОUSDT', 'HARDUSDT', 'HIVEUSDT', 'HNTUSDT',
+            'HOTUSDT', 'IDEXUSDT', 'INJUSDT', 'IOSTUSDT', 'IOTXUSDT', 'IRISИSDT', 'JSTUSDT', 'JUSTСDT', 'KAVAUSDT', 'KEYUSDT',
+            'KMDUSDT', 'KNCUSDT', 'KSMUSDT', 'LENDСDT', 'LEVERUSDT', 'LINAUSDT', 'LOOMИSDT', 'LSKСDT', 'LTOUSDT', 'LUNAUSDT',
+            'MASKUSDT', 'МСОUSDT', 'MDXUSDT', 'MITHUSDT', 'МКRUSDT', 'MLNUSDT', 'MOBUSDT', 'MODAUSDT', 'МTSDT', 'NAVУСDT',
+            'NEARUSDT', 'NEOUSDT', 'NKNUSDT', 'NRMUSDT', 'NULSUSDT', 'NXSUSDT', 'OGNUSDT', 'OMGUSDT', 'ONEUSDT', 'ONGИСDT',
+            'ONTUSDT', 'OOKIUSDT', 'ORSUSDT', 'OSMOUSDT', 'OXTUSDT', 'PAXGUSDT', 'PERLUSDT', 'PHAUSDT', 'PROMUSDT', 'PSGUSDT',
+            'PUNDIXUSDT', 'PNTUSDT', 'POLSUSDT', 'POLYUSDT', 'PONDUSDT', 'PORSUSDT', 'QIUSDT', 'QTRUMUSDT', 'QUICKСDT', 'RADUSDT',
+            'RAIUSDT', 'RAREUSDT', 'RAYUSDT', 'REEFUSDT', 'RENUSDT', 'REPUSDT', 'REQUSDT', 'RIFUSDT', 'RLCUSDT', 'ROSEUSDT',
+            'RУNUSDT', 'RVNUSDT', 'SANDUSDT', 'SCRTUSDT', 'SFPUSDT', 'SKLUSDT', 'SLPUSDT', 'SNXUSDT', 'SOLУSDT', 'SRMUSDT',
+            'STMXUSDT', 'STORJUSDT', 'STPTUSDT', 'STRAXUSDT', 'STXUSDT', 'SUNUSDT', 'SXPUSDT', 'SYSUSDT', 'TCTUSDT', 'TFUELΥSDT',
+            'THETAUSDT', 'TKOUSDT', 'TLMUSDT', 'TRBUSDT', 'TRUUSDT', 'TRYUSDT', 'TVKUSDT', 'TWTUSDT', 'UMAUSDT', 'UNFIUSDT',
+            'UPUSDT', 'UTKUSDT', 'VETUSDT', 'VIAУСDT', 'VIBUSDT', 'VITEUSDT', 'VTHOUSDT', 'VTHOУСDT', 'WANУСDT', 'WAXPUSDT',
+            'WINGUSDT', 'WNXMИSDT', 'WRXUSDT', 'WTCUSDT', 'XEMUSDT', 'XLMUSDT', 'XMRUSDT', 'XRPUSDT', 'XTZUSDT', 'XVGUSDT',
+            'XVSUSDT', 'YFIUSDT', 'YFIIUSDT', 'YGGUSDT', 'ZECUSDT', 'ZENUSDT', 'ZILUSDT', 'ZRXUSDT'
+        ]
+        print(f"🔄 Fallback liste kullanılıyor: {len(fallback_coins)} coin")
+        return fallback_coins
     
     def get_candle_data(self, symbol, timeframe, limit=100):
         """Belirli coin ve timeframe için mum verisi al (MA hesabı için 100 mum) - retry ile"""
