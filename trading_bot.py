@@ -940,11 +940,17 @@ class TradingAnalyzer:
     
     def update_status(self, text):
         """Durum güncelle"""
-        self.root.after(0, lambda: self.status_label.config(text=text))
+        if self.root:
+            self.root.after(0, lambda: self.status_label.config(text=text))
+        else:
+            print(f"Status: {text}")
     
     def update_progress(self, text):
         """İlerleme güncelle"""
-        self.root.after(0, lambda: self.progress_label.config(text=text))
+        if self.root:
+            self.root.after(0, lambda: self.progress_label.config(text=text))
+        else:
+            print(f"Progress: {text}")
     
     def add_result(self, symbol, match_result):
         """Sonuç ekle"""
@@ -956,7 +962,8 @@ class TradingAnalyzer:
             self.results_text.insert(tk.END, result_text)
             self.results_text.see(tk.END)
         
-        self.root.after(0, add)
+        if self.root:
+            self.root.after(0, add)
     
     def setup_position_ui(self, parent):
         """Pozisyon kayıt arayüzü"""
@@ -1135,13 +1142,16 @@ class TradingAnalyzer:
                 self.positions_data.append(position_record)
                 self.save_positions()
                 
-                self.root.after(0, lambda: self.position_status.config(
+                if self.root:
+                    self.root.after(0, lambda: self.position_status.config(
                     text=f"✅ {symbol} verileri kaydedildi! ({len(data)} timeframe)"))
                 self.root.after(0, self.update_positions_display)
                 self.root.after(0, self.update_open_positions_combo)
-                self.root.after(0, lambda: self.coin_entry.delete(0, tk.END))
+                if self.root:
+                    self.root.after(0, lambda: self.coin_entry.delete(0, tk.END))
             else:
-                self.root.after(0, lambda: self.position_status.config(
+                if self.root:
+                    self.root.after(0, lambda: self.position_status.config(
                     text=f"❌ {symbol} verileri alınamadı!"))
         
         thread = threading.Thread(target=collect_data)
@@ -2963,7 +2973,8 @@ class TradingAnalyzer:
             self.advanced_results.insert(tk.END, result_text)
             self.advanced_results.see(tk.END)
         
-        self.root.after(0, add)
+        if self.root:
+            self.root.after(0, add)
     
     def close_advanced_window(self, window):
         """Kapsamlı tarama penceresini kapat"""
