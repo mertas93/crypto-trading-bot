@@ -305,7 +305,7 @@ class CryptoBotGitHub:
             'source': 'simulation'
         }
 
-    def calculate_match_score(self, current_data: Dict, position_data: Dict) -> Dict[str, Any]:
+    def calculate_match_score(self, current_data: Dict, position_data: Dict, debug_symbol: str = "") -> Dict[str, Any]:
         """44-faktör eşleşme skoru - ULTRA SIKICI KRİTERLER"""
         try:
             matches = 0
@@ -328,26 +328,36 @@ class CryptoBotGitHub:
                 current_tf = current_data[tf_key]
                 position_tf = position_tf_data
                 
-                # 11 faktör karşılaştırması - pozisyon dosyasındaki gerçek isimler
-                factors = [
-                    'ma_order', 'rsi', 'macd', 'bollinger', 'volume_avg', 
-                    'price_current', 'volatility', 'support_resistance', 'funding_rate',
-                    'stats_24h', 'btc_correlation'
-                ]
+                # BASIT TEST - sadece ma_order kontrolü
+                factors = ['ma_order']
                 
                 tf_total = 0
                 for factor in factors:
                     if factor in current_tf and factor in position_tf:
                         tf_total += 1
+                        current_val = str(current_tf[factor])
+                        position_val = str(position_tf[factor])
+                        
+                        # Debug log for first few symbols
+                        if debug_symbol in ['BTCUSDT', 'ETHUSDT'] and tf == '1m':
+                            logger.info(f"DEBUG {debug_symbol}: {factor} current={current_val} vs position={position_val}")
+                        
                         # Eşleşme kontrolü - strict
-                        if str(current_tf[factor]) == str(position_tf[factor]):
+                        if current_val == position_val:
                             matches += 1
                             tf_matches += 1
+                            if debug_symbol in ['BTCUSDT', 'ETHUSDT'] and tf == '1m':
+                                logger.info(f"DEBUG {debug_symbol}: {factor} EŞLEŞTİ!")
+                    else:
+                        if debug_symbol in ['BTCUSDT', 'ETHUSDT'] and tf == '1m':
+                            current_has = factor in current_tf
+                            position_has = factor in position_tf
+                            logger.info(f"DEBUG {debug_symbol}: {factor} missing - current:{current_has} position:{position_has}")
                 
                 total_factors += tf_total
                 
-                # Multi-TF: En az 3/11 faktör eşleşmeli (test için çok düşük)
-                if tf_total > 0 and (tf_matches / tf_total) >= 0.27:  # ~3/11
+                # Multi-TF: En az 1 faktör eşleşmeli (çok basit test)
+                if tf_matches > 0:  # Herhangi bir eşleşme varsa
                     multi_tf_matches += 1
                 
                 detailed_matches[tf] = {
@@ -363,11 +373,10 @@ class CryptoBotGitHub:
             overall_percentage = (matches / total_factors) * 100
             multi_tf_score = multi_tf_matches  # Maksimum 4 (4 timeframe)
             
-            # Çok düşük eşik değerleri - test için
+            # ÇOK BASIT TEST - neredeyse her şey geçsin
             qualified = (
-                multi_tf_score >= 1 and  # En az 1 Multi-TF yeterli
-                overall_percentage >= 25 and  # %25+ genel tutarlılık
-                matches >= int(total_factors * 0.30)  # %30+ faktör eşleşmesi
+                total_factors > 0 and  # En az 1 faktör var
+                matches > 0  # En az 1 eşleşme var
             )
             
             return {
@@ -421,7 +430,9 @@ class CryptoBotGitHub:
         for position in self.positions_data:
             try:
                 # Eşleşme skoru hesapla
-                score_result = self.calculate_match_score(current_data, position)
+                # İlk pozisyon için debug
+                debug_symbol = "BTCUSDT" if len(matches) == 0 else ""
+                score_result = self.calculate_match_score(current_data, position, debug_symbol)
                 
                 # ULTRA SIKICI filtre
                 if score_result['qualified']:
@@ -482,7 +493,7 @@ class CryptoBotGitHub:
                     matches = self.find_matching_positions(current_data)
                     
                     # Debug için ilk coin'de detay log
-                    if processed < 3:
+                    if symbol in ['BTCUSDT', 'ETHUSDT']:
                         logger.info(f"DEBUG {symbol}: {len(matches)} eşleşme bulundu")
                         if matches:
                             logger.info(f"DEBUG {symbol}: En iyi eşleşme %{matches[0]['score']['match_percentage']}")
