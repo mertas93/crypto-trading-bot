@@ -1239,14 +1239,7 @@ def main():
             # BTC kontrolü başarısız VEYA uygunsuzsa tarama YAPMA
             if not market_analysis['tradeable']:
                 logger.info(f"🚫 TARAMA İPTAL: {market_analysis['reason']}")
-                bot.send_telegram_message(
-                    f"🚫 <b>Tarama İptal Edildi</b>\n\n"
-                    f"📊 <b>BTC Market:</b> {market_analysis['regime']}\n"
-                    f"🎯 <b>Multi-TF:</b> {market_analysis['multi_tf']}\n"
-                    f"📈 <b>Tutarlılık:</b> %{market_analysis['consistency']:.0f}\n\n"
-                    f"❌ <b>Sebep:</b> {market_analysis['reason']}\n\n"
-                    f"⚠️ <i>Sadece Bull/Bear trend + 3/4 TF + %75+ tutarlılık durumunda sinyal verilir.</i>"
-                )
+                logger.info("📱 Telegram mesajı gönderilmedi - Tarama iptal durumu")
                 return 0
                 
             # BTC kontrolü başarılı - Tarama yap
@@ -1256,12 +1249,7 @@ def main():
         except Exception as e:
             # BTC analizi başarısız - Tarama YAPMA
             logger.error(f"🚫 BTC market analizi başarısız: {e}")
-            bot.send_telegram_message(
-                f"🚫 <b>Tarama İptal Edildi</b>\n\n"
-                f"📊 <b>BTC Analizi:</b> BAŞARISIZ\n"
-                f"❌ <b>Hata:</b> {str(e)[:100]}...\n\n"
-                f"⚠️ <i>BTC market analizi zorunlu - API erişimi gerekli</i>"
-            )
+            logger.info("📱 Telegram mesajı gönderilmedi - BTC analiz hatası")
             return 1
         start_time = time.time()
         matches = bot.run_scan()
