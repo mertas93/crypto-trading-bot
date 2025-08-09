@@ -941,21 +941,32 @@ class CryptoBotGitHub:
                     closes = []
                     base_price = 50000
                     
-                    if trend_seed == 0:  # BULL TREND
-                        logger.info("📈 Simülasyon: BULL TREND")
+                    import random
+                    random.seed(trend_seed + ord(tf[0]))  # Timeframe'e göre farklı seed
+                    
+                    if trend_seed == 0:  # BULL TREND (gürültülü)
+                        logger.info("📈 Simülasyon: BULL TREND (realistik)")
                         for i in range(100):
-                            price = base_price + i * 20  # Güçlü yükseliş
-                            closes.append(price)
-                    elif trend_seed == 1:  # BEAR TREND  
-                        logger.info("📉 Simülasyon: BEAR TREND")
+                            # Ana trend + rastgele gürültü
+                            trend = i * 12  # Yavaş yükseliş
+                            noise = random.uniform(-200, 200)  # ±200 gürültü
+                            price = base_price + trend + noise
+                            closes.append(max(price, 40000))  # Minimum 40k
+                    elif trend_seed == 1:  # BEAR TREND (gürültülü)
+                        logger.info("📉 Simülasyon: BEAR TREND (realistik)")  
                         for i in range(100):
-                            price = base_price + 2000 - i * 20  # Güçlü düşüş
-                            closes.append(price)
-                    else:  # BULL TREND (default)
-                        logger.info("📈 Simülasyon: BULL TREND (default)")
+                            # Ana trend + rastgele gürültü
+                            trend = 1500 - i * 12  # Yavaş düşüş
+                            noise = random.uniform(-200, 200)  # ±200 gürültü
+                            price = base_price + trend + noise
+                            closes.append(max(price, 40000))  # Minimum 40k
+                    else:  # RANGE MARKET (gürültülü)
+                        logger.info("📊 Simülasyon: RANGE MARKET (realistik)")
                         for i in range(100):
-                            price = base_price + i * 15
-                            closes.append(price)
+                            # Yatay trend + büyük gürültü
+                            noise = random.uniform(-500, 500)  # ±500 gürültü
+                            price = base_price + noise
+                            closes.append(max(price, 40000))  # Minimum 40k
                 
                 if closes:
                     ma_7 = self.calculate_ma(closes, 7)
