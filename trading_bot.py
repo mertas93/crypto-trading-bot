@@ -372,11 +372,11 @@ class AdvancedTradingBot:
         scanned = 0
         
         # Tek tek işlem - donma önleme
-        for i, symbol in enumerate(coins[:50]):  # İlk 50 coin test
+        for i, symbol in enumerate(coins):  # Tüm coinler
             try:
                 scanned += 1
-                if scanned % 10 == 0:  # Her 10 coin'de rapor
-                    print(f"⏳ {scanned}/50 - {symbol}")
+                if scanned % 25 == 0 or scanned <= 10:  # Daha sık rapor
+                    print(f"⏳ {scanned}/{len(coins)} - {symbol}")
                 
                 # Multi-timeframe analiz
                 current_analysis = self.analyze_multi_timeframe_fast(symbol)
@@ -430,7 +430,7 @@ class AdvancedTradingBot:
 ⏰ <b>Zaman:</b> {timestamp}
 📊 <b>Timeframe:</b> %{signal_data['timeframe_rate']:.0f}
 🎯 <b>Eşleşme:</b> %{signal_data['match_rate']:.0f}
-🔍 <b>Taranan:</b> {scanned}/50
+🔍 <b>Taranan:</b> {scanned}/{len(coins)}
 
 🤖 <i>Gelişmiş analiz - 14 kriter</i>"""
                     else:
@@ -439,7 +439,7 @@ class AdvancedTradingBot:
 💰 <b>Coin:</b> {signal_data['symbol']}  
 ⏰ <b>Zaman:</b> {timestamp}
 📊 <b>Timeframe:</b> %{signal_data['timeframe_rate']:.0f}
-🔍 <b>Taranan:</b> {scanned}/50
+🔍 <b>Taranan:</b> {scanned}/{len(coins)}
 
 🤖 <i>Teknik analiz - 14 kriter</i>"""
                     
