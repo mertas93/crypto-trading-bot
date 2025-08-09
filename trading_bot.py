@@ -1101,17 +1101,35 @@ class CryptoBotGitHub:
                 ma_order = data['ma_order']
                 if len(ma_order) == 3:
                     # ma_order = MA değerlerine göre sıralanmış period'lar (büyükten küçüğe)
-                    # BULL: MA7 > MA25 > MA99 → ma_order = [7, 25, 99] 
-                    # BEAR: MA99 > MA25 > MA7 → ma_order = [99, 25, 7]
+                    # Kısa vadeli MA'ların uzun vadeliden yüksek olması = BULL eğilimi
+                    # Uzun vadeli MA'ların kısa vadeliden yüksek olması = BEAR eğilimi
                     
-                    if ma_order == [7, 25, 99]:  # MA7 > MA25 > MA99 = BULL
-                        timeframe_signals.append('BULL')
-                        consistent_count += 1
-                    elif ma_order == [99, 25, 7]:  # MA99 > MA25 > MA7 = BEAR  
-                        timeframe_signals.append('BEAR')
-                        consistent_count += 1
-                    else:  # Karışık sıralama = RANGE
+                    ma_7_val = data['ma_7']
+                    ma_25_val = data['ma_25'] 
+                    ma_99_val = data['ma_99']
+                    
+                    # Basit trend belirleme: MA7 vs MA99 karşılaştırması
+                    if ma_7_val > ma_99_val:  # Kısa MA > Uzun MA = BULL
+                        trend_strength = (ma_7_val - ma_99_val) / ma_99_val * 100
+                        if trend_strength > 0.1:  # En az %0.1 fark olmalı
+                            timeframe_signals.append('BULL')
+                            consistent_count += 1
+                            logger.debug(f"🟢 {tf}: BULL trend (+{trend_strength:.2f}%)")
+                        else:
+                            timeframe_signals.append('RANGE')
+                            logger.debug(f"📊 {tf}: RANGE (çok düşük fark: {trend_strength:.2f}%)")
+                    elif ma_99_val > ma_7_val:  # Uzun MA > Kısa MA = BEAR  
+                        trend_strength = (ma_99_val - ma_7_val) / ma_7_val * 100
+                        if trend_strength > 0.1:  # En az %0.1 fark olmalı
+                            timeframe_signals.append('BEAR')
+                            consistent_count += 1
+                            logger.debug(f"🔴 {tf}: BEAR trend (-{trend_strength:.2f}%)")
+                        else:
+                            timeframe_signals.append('RANGE')
+                            logger.debug(f"📊 {tf}: RANGE (çok düşük fark: -{trend_strength:.2f}%)")
+                    else:  # Eşit = RANGE
                         timeframe_signals.append('RANGE')
+                        logger.debug(f"📊 {tf}: RANGE (MA7 ≈ MA99)")
             
             # Sinyal tutarlılığını hesapla
             bull_count = timeframe_signals.count('BULL')
