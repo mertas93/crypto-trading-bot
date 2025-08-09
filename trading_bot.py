@@ -628,9 +628,9 @@ class CryptoBotGitHub:
                 else:
                     ma_check_passed = False
             
-            # ULTRA SıKı KRITER: 4/4 timeframe MA eşleşmesi ZORUNLU
-            if ma_consistency_count < 4:  # Tam 4 timeframe eşleşmeli
-                return {'score': 0, 'quality': 'POOR', 'details': f'MA tutarlılığı yetersiz: {ma_consistency_count}/4 (4/4 gerekli)', 'factors_matched': 0}
+            # TEST MODU: Multi-TF kriterini düşür
+            if ma_consistency_count < 1:  # Test için 1/4 timeframe yeterli
+                return {'score': 0, 'quality': 'POOR', 'details': f'MA tutarlılığı yetersiz: {ma_consistency_count}/4 (1/4 gerekli - TEST)', 'factors_matched': 0}
             
             # 2. GENEL TUTARLıLıK KONTROL - %80+ gerekli
             timeframe_signals = []
@@ -658,10 +658,10 @@ class CryptoBotGitHub:
             if total_clear_signals == 0:
                 return {'score': 0, 'quality': 'POOR', 'details': 'Hiç net sinyal yok', 'factors_matched': 0}
             
-            # %75+ tutarlılık gerekli (en az 3/4 timeframe aynı yönde)
+            # TEST MODU: %25+ tutarlılık gerekli
             consistency_ratio = max(bull_count, bear_count) / len(timeframes)
-            if consistency_ratio < 0.75:  # %75 altı tutarlılık RED
-                return {'score': 0, 'quality': 'POOR', 'details': f'Tutarlılık düşük: %{consistency_ratio*100:.0f}', 'factors_matched': 0}
+            if consistency_ratio < 0.25:  # Test için %25 yeterli  
+                return {'score': 0, 'quality': 'POOR', 'details': f'Tutarlılık düşük: %{consistency_ratio*100:.0f} - TEST', 'factors_matched': 0}
             
             total_score = 0
             total_factors = 0
@@ -1312,9 +1312,9 @@ class CryptoBotGitHub:
             message += f"📈 <b>Sonuç:</b> Sinyal bulunamadı\n\n"
             message += "⚠️ Ultra sıkı kriterler - uygun eşleşme yok.\n"
             message += "📋 Gereksinimler:\n"
-            message += "   🎯 Multi-TF: 4/4 timeframe TAM eşleşme\n"
-            message += "   📊 Tutarlılık: %75+ (aynı yön sinyaller)\n"
-            message += "   🔥 Eşleşme: %40+ (pozisyon match) - TEST MODU\n"
+            message += "   🎯 Multi-TF: 1/4 timeframe (TEST MODU)\n"
+            message += "   📊 Tutarlılık: %25+ (TEST MODU)\n"
+            message += "   🔥 Eşleşme: %40+ (TEST MODU)\n"
             message += "Bir sonraki tarama: 40 dakika içinde"
             return message
         
