@@ -1259,34 +1259,45 @@ class CryptoBotGitHub:
                 logger.info(f"⏳ {scanned_count}/{len(crypto_list)} - {len(matches)} eşleşme")
             
             try:
+                # DEBUG: Her 10 coin'de log
+                if scanned_count % 10 == 1:
+                    logger.info(f"🔍 DEBUG: {symbol} taraniyor... ({scanned_count}/{len(crypto_list)})")
+                
                 # Coin için kapsamlı veri topla (timeout koruması)
                 coin_data = None
                 try:
                     coin_data = self.get_comprehensive_data(symbol)
-                except:
-                    # API timeout - coin'i atla
+                    if coin_data:
+                        logger.debug(f"📊 {symbol}: Veri alındı - {len(coin_data)} timeframe")
+                    else:
+                        logger.debug(f"❌ {symbol}: Veri alınamadı")
+                except Exception as e:
+                    logger.debug(f"❌ {symbol}: API hatası - {e}")
                     continue
                     
                 if coin_data:
                     # SADECE POZİSYON EŞLEŞMESİ - Dosyadan
                     match_result = self.analyze_hybrid_signal(coin_data, symbol)
+                    logger.debug(f"🎯 {symbol}: Match result = {match_result}")
+                    
                     if match_result and match_result.get('match_percentage', 0) >= 40:  # Minimum %40 eşleşme (test)
                         matches.append({
                             'symbol': symbol,
                             **match_result
                         })
-                        logger.info(f"✅ Eşleşme bulundu: {symbol} -> {match_result['signal']}")
+                        logger.info(f"🚀 TEST SİNYALİ BULUNDU: {symbol} -> {match_result['signal']} (%{match_result['match_percentage']:.1f})")
                         
                         # HEMEN TELEGRAM MESAJI GÖNDER
-                        instant_msg = f"🚨 <b>CANLI SİNYAL!</b>\n\n"
+                        instant_msg = f"🧪 <b>TEST SİNYALİ!</b>\n\n"
                         instant_msg += f"🪙 <b>{symbol}</b>\n"
                         instant_msg += f"📈 <b>{match_result['signal']}</b>\n"
                         instant_msg += f"🎯 <b>%{match_result['match_percentage']:.1f}</b> eşleşme\n"
                         instant_msg += f"🔗 <b>{match_result.get('cross_pair', 'N/A')}</b>\n"
-                        instant_msg += f"⭐ <b>{match_result.get('quality', 'HIGH')}</b>\n\n"
+                        instant_msg += f"⭐ <b>{match_result.get('quality', 'TEST')}</b>\n\n"
                         instant_msg += f"⏰ {datetime.now().strftime('%H:%M:%S')}"
                         
-                        self.send_telegram_message(instant_msg)
+                        success = self.send_telegram_message(instant_msg)
+                        logger.info(f"📱 Telegram mesajı: {'✅ Gönderildi' if success else '❌ Başarısız'}")
                         
             except Exception as e:
                 logger.debug(f"Coin tarama hatası {symbol}: {e}")
