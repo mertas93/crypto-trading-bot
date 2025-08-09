@@ -69,7 +69,13 @@ class CryptoBotGitHub:
         try:
             with open('trading_positions.json', 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                self.positions_data = data.get('positions', data)  # Backward compatibility
+                
+                # Eğer data bir liste ise direkt kullan, dict ise 'positions' anahtarını ara
+                if isinstance(data, list):
+                    self.positions_data = data
+                else:
+                    self.positions_data = data.get('positions', [])
+                    
                 logger.info(f"✅ {len(self.positions_data)} GERÇEK pozisyon yüklendi")
         except FileNotFoundError:
             logger.error("❌ trading_positions.json bulunamadı!")
@@ -310,12 +316,17 @@ class CryptoBotGitHub:
             # Her timeframe için 11 faktör kontrolü
             for tf in self.timeframes:
                 tf_key = f"{tf}_data"
-                if tf_key not in current_data or tf_key not in position_data:
+                if tf_key not in current_data:
+                    continue
+                
+                # Position data formatı: position['data']['1m'] şeklinde
+                position_tf_data = position_data.get('data', {}).get(tf, {})
+                if not position_tf_data:
                     continue
                 
                 tf_matches = 0
                 current_tf = current_data[tf_key]
-                position_tf = position_data[tf_key]
+                position_tf = position_tf_data
                 
                 # 11 faktör karşılaştırması
                 factors = [
