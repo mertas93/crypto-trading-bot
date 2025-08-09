@@ -22,7 +22,6 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('crypto_bot.log'),
         logging.StreamHandler(sys.stdout)
     ]
 )
@@ -208,24 +207,24 @@ class CryptoBotGitHub:
             return {}
 
     def get_ma_order(self, closes: List[float]) -> List[int]:
-        """MA sıralamasını al - Trend belirleyici"""
+        """MA sıralamasını al - Pozisyon dosyası formatında [99,25,7] gibi"""
         mas = self.calculate_moving_averages(closes)
         if not mas:
             return []
         
-        # MA'ları sırala - Bull: MA7 > MA25 > MA99, Bear: tersi
+        # MA'ları sırala - Bull: MA7 > MA25 > MA99, Bear: tersi  
         ma_list = [('MA7', mas['MA7']), ('MA25', mas['MA25']), ('MA99', mas['MA99'])]
         ma_list.sort(key=lambda x: x[1], reverse=True)  # Büyükten küçüğe
         
-        # MA sırasını integer olarak döndür (1=MA7, 2=MA25, 3=MA99)
+        # MA sırasını period değerleri olarak döndür (7, 25, 99)
         ma_order = []
         for ma_name, _ in ma_list:
             if ma_name == 'MA7':
-                ma_order.append(1)
+                ma_order.append(7)
             elif ma_name == 'MA25':
-                ma_order.append(2)
+                ma_order.append(25)
             elif ma_name == 'MA99':
-                ma_order.append(3)
+                ma_order.append(99)
         
         return ma_order
 
@@ -305,7 +304,7 @@ class CryptoBotGitHub:
             'source': 'simulation'
         }
 
-    def calculate_match_score(self, current_data: Dict, position_data: Dict, debug_symbol: str = "") -> Dict[str, Any]:
+    def calculate_match_score(self, current_data: Dict, position_data: Dict) -> Dict[str, Any]:
         """44-faktör eşleşme skoru - ULTRA SIKICI KRİTERLER"""
         try:
             matches = 0
@@ -338,21 +337,10 @@ class CryptoBotGitHub:
                         current_val = str(current_tf[factor])
                         position_val = str(position_tf[factor])
                         
-                        # Debug log for first few symbols
-                        if debug_symbol in ['BTCUSDT', 'ETHUSDT'] and tf == '1m':
-                            logger.info(f"DEBUG {debug_symbol}: {factor} current={current_val} vs position={position_val}")
-                        
                         # Eşleşme kontrolü - strict
                         if current_val == position_val:
                             matches += 1
                             tf_matches += 1
-                            if debug_symbol in ['BTCUSDT', 'ETHUSDT'] and tf == '1m':
-                                logger.info(f"DEBUG {debug_symbol}: {factor} EŞLEŞTİ!")
-                    else:
-                        if debug_symbol in ['BTCUSDT', 'ETHUSDT'] and tf == '1m':
-                            current_has = factor in current_tf
-                            position_has = factor in position_tf
-                            logger.info(f"DEBUG {debug_symbol}: {factor} missing - current:{current_has} position:{position_has}")
                 
                 total_factors += tf_total
                 
@@ -430,9 +418,7 @@ class CryptoBotGitHub:
         for position in self.positions_data:
             try:
                 # Eşleşme skoru hesapla
-                # İlk pozisyon için debug
-                debug_symbol = "BTCUSDT" if len(matches) == 0 else ""
-                score_result = self.calculate_match_score(current_data, position, debug_symbol)
+                score_result = self.calculate_match_score(current_data, position)
                 
                 # ULTRA SIKICI filtre
                 if score_result['qualified']:
@@ -492,11 +478,6 @@ class CryptoBotGitHub:
                     # Eşleşen pozisyonlar
                     matches = self.find_matching_positions(current_data)
                     
-                    # Debug için ilk coin'de detay log
-                    if symbol in ['BTCUSDT', 'ETHUSDT']:
-                        logger.info(f"DEBUG {symbol}: {len(matches)} eşleşme bulundu")
-                        if matches:
-                            logger.info(f"DEBUG {symbol}: En iyi eşleşme %{matches[0]['score']['match_percentage']}")
                     
                     if matches:  # Minimum kriterlerden geçenler
                         best_match = matches[0]
