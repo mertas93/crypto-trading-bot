@@ -867,7 +867,7 @@ class CryptoBotGitHub:
                 match_result = self.calculate_match_score(coin_data, pos)
                 score = match_result.get('score', 0)
                 
-                if score > best_score and score >= 85:  # Minimum %85 eşleşme
+                if score > best_score and score >= 40:  # Minimum %40 eşleşme (test)
                     best_score = score
                     best_match = pos
                     best_details = match_result
@@ -1270,7 +1270,7 @@ class CryptoBotGitHub:
                 if coin_data:
                     # SADECE POZİSYON EŞLEŞMESİ - Dosyadan
                     match_result = self.analyze_hybrid_signal(coin_data, symbol)
-                    if match_result and match_result.get('match_percentage', 0) >= 85:  # Minimum %85 eşleşme
+                    if match_result and match_result.get('match_percentage', 0) >= 40:  # Minimum %40 eşleşme (test)
                         matches.append({
                             'symbol': symbol,
                             **match_result
@@ -1314,7 +1314,7 @@ class CryptoBotGitHub:
             message += "📋 Gereksinimler:\n"
             message += "   🎯 Multi-TF: 4/4 timeframe TAM eşleşme\n"
             message += "   📊 Tutarlılık: %75+ (aynı yön sinyaller)\n"
-            message += "   🔥 Eşleşme: %85+ (pozisyon match)\n"
+            message += "   🔥 Eşleşme: %40+ (pozisyon match) - TEST MODU\n"
             message += "Bir sonraki tarama: 40 dakika içinde"
             return message
         
