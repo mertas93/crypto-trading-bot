@@ -602,9 +602,9 @@ class CryptoBotGitHub:
                 else:
                     ma_check_passed = False
             
-            # ULTRA SıKı KRITER: 3/3 timeframe MA eşleşmesi gerekli (4. timeframe isteğe bağlı)
-            if ma_consistency_count < 3:  # En az 3 timeframe eşleşmeli
-                return {'score': 0, 'quality': 'POOR', 'details': f'MA tutarlılığı yetersiz: {ma_consistency_count}/4', 'factors_matched': 0}
+            # ULTRA SıKı KRITER: 4/4 timeframe MA eşleşmesi ZORUNLU
+            if ma_consistency_count < 4:  # Tam 4 timeframe eşleşmeli
+                return {'score': 0, 'quality': 'POOR', 'details': f'MA tutarlılığı yetersiz: {ma_consistency_count}/4 (4/4 gerekli)', 'factors_matched': 0}
             
             # 2. GENEL TUTARLıLıK KONTROL - %80+ gerekli
             timeframe_signals = []
@@ -892,32 +892,122 @@ class CryptoBotGitHub:
             logger.error(f"Hybrid signal analizi hatası: {e}")
             return None
 
-    def get_current_market_regime(self) -> str:
-        """GERÇEK ZAMANLI BTC'den trend tespit et - Orijinal sistem"""
+    def get_current_market_regime(self) -> Dict[str, Any]:
+        """KAPSAMLI BTC MARKET ANALİZİ - Ultra sıkı filtreler"""
         try:
-            # Güncel BTC 15m verisi çek (çok kısa vadeli)
-            btc_4h = self.get_candle_data('BTCUSDT', '15m', limit=100)
-            if not btc_4h:
-                return "UNKNOWN"
-                
-            # MA'ları hesapla
-            ma_7 = self.calculate_ma(btc_4h, 7)
-            ma_25 = self.calculate_ma(btc_4h, 25) 
-            ma_99 = self.calculate_ma(btc_4h, 99)
+            logger.info("🔍 BTC genel market durumu kontrol ediliyor...")
             
-            if None in [ma_7, ma_25, ma_99]:
-                return "UNKNOWN"
+            # BTC 4 timeframe verisi çek
+            timeframes = ['1m', '3m', '5m', '30m']
+            btc_data = {}
             
-            # MA sıralaması belirle
-            if ma_7 > ma_25 > ma_99:
-                return "BULL_TREND"
-            elif ma_99 > ma_25 > ma_7:
-                return "BEAR_TREND"
+            for tf in timeframes:
+                closes = self.get_candle_data('BTCUSDT', tf, limit=100)
+                if closes:
+                    ma_7 = self.calculate_ma(closes, 7)
+                    ma_25 = self.calculate_ma(closes, 25)
+                    ma_99 = self.calculate_ma(closes, 99)
+                    
+                    if None not in [ma_7, ma_25, ma_99]:
+                        btc_data[tf] = {
+                            'ma_7': ma_7,
+                            'ma_25': ma_25, 
+                            'ma_99': ma_99,
+                            'ma_order': self.get_ma_order(closes)
+                        }
+            
+            if len(btc_data) < 3:  # En az 3 timeframe gerekli
+                return {
+                    'regime': 'UNKNOWN',
+                    'multi_tf': '0/4',
+                    'consistency': 0,
+                    'tradeable': False,
+                    'reason': 'BTC veri yetersiz'
+                }
+            
+            # Multi-TF tutarlılığı kontrol et
+            timeframe_signals = []
+            consistent_count = 0
+            
+            for tf, data in btc_data.items():
+                ma_order = data['ma_order']
+                if len(ma_order) == 3:
+                    if ma_order[0] < ma_order[1] < ma_order[2]:  # [7,25,99] = BULL
+                        timeframe_signals.append('BULL')
+                        consistent_count += 1
+                    elif ma_order[0] > ma_order[1] > ma_order[2]:  # [99,25,7] = BEAR  
+                        timeframe_signals.append('BEAR')
+                        consistent_count += 1
+                    else:
+                        timeframe_signals.append('RANGE')
+            
+            # Sinyal tutarlılığını hesapla
+            bull_count = timeframe_signals.count('BULL')
+            bear_count = timeframe_signals.count('BEAR') 
+            range_count = timeframe_signals.count('RANGE')
+            
+            total_tf = len(timeframe_signals)
+            if total_tf == 0:
+                return {
+                    'regime': 'UNKNOWN',
+                    'multi_tf': '0/4',
+                    'consistency': 0,
+                    'tradeable': False,
+                    'reason': 'BTC sinyal hesaplanamadı'
+                }
+            
+            # Tutarlılık yüzdesi
+            max_direction = max(bull_count, bear_count)
+            consistency_ratio = max_direction / total_tf * 100
+            
+            # Market rejimi belirle
+            if bull_count >= 3:
+                regime = 'BULL_TREND'
+            elif bear_count >= 3:
+                regime = 'BEAR_TREND'
             else:
-                return "RANGE_MARKET"
+                return {
+                    'regime': 'RANGE_MARKET', 
+                    'multi_tf': f'{consistent_count}/4',
+                    'consistency': consistency_ratio,
+                    'tradeable': False,
+                    'reason': 'Range market - sinyal verilmez'
+                }
+            
+            # ULTRA SIKI FİLTRELER
+            multi_tf_ok = consistent_count >= 3  # En az 3/4 TF tutarlı
+            consistency_ok = consistency_ratio >= 75  # %75+ tutarlılık
+            
+            # BULL veya BEAR market'ta sinyal ver, RANGE'de verme
+            tradeable = multi_tf_ok and consistency_ok and regime in ['BULL_TREND', 'BEAR_TREND']
+            
+            reason = ''
+            if not multi_tf_ok:
+                reason = f'Multi-TF yetersiz: {consistent_count}/4'
+            elif not consistency_ok:
+                reason = f'BTC tutarlılık düşük: %{consistency_ratio:.0f}'
+            elif regime == 'RANGE_MARKET':
+                reason = f'Range market - belirsizlik'
+            else:
+                reason = 'Tüm kriterler OK'
+            
+            return {
+                'regime': regime,
+                'multi_tf': f'{consistent_count}/4', 
+                'consistency': consistency_ratio,
+                'tradeable': tradeable,
+                'reason': reason
+            }
                 
-        except:
-            return "UNKNOWN"
+        except Exception as e:
+            logger.error(f"Market rejimi analiz hatası: {e}")
+            return {
+                'regime': 'UNKNOWN',
+                'multi_tf': '0/4',
+                'consistency': 0,
+                'tradeable': False,
+                'reason': f'BTC analiz hatası: {str(e)}'
+            }
 
     def run_scan(self) -> List[Dict]:
         """Ana tarama fonksiyonu - Orijinal sistem"""
@@ -998,7 +1088,7 @@ class CryptoBotGitHub:
             message += f"📈 <b>Sonuç:</b> Sinyal bulunamadı\n\n"
             message += "⚠️ Ultra sıkı kriterler - uygun eşleşme yok.\n"
             message += "📋 Gereksinimler:\n"
-            message += "   🎯 Multi-TF: En az 3/4 timeframe eşleşmeli\n"
+            message += "   🎯 Multi-TF: 4/4 timeframe TAM eşleşme\n"
             message += "   📊 Tutarlılık: %75+ (aynı yön sinyaller)\n"
             message += "   🔥 Eşleşme: %90+ (pozisyon match)\n"
             message += "Bir sonraki tarama: 40 dakika içinde"
@@ -1076,11 +1166,25 @@ def main():
         # Bot'u başlat
         bot = CryptoBotGitHub()
         
-        # Market durumunu al
-        market_regime = bot.get_current_market_regime()
-        logger.info(f"📊 Market durumu: {market_regime}")
+        # KAPSAMLI BTC MARKET KONTROLÜ
+        market_analysis = bot.get_current_market_regime()
+        logger.info(f"📊 BTC Market: {market_analysis['regime']} | Multi-TF: {market_analysis['multi_tf']} | Tutarlılık: %{market_analysis['consistency']:.0f}")
         
-        # Tarama yap
+        # Market genel durumu uygun değilse tarama yapma
+        if not market_analysis['tradeable']:
+            logger.info(f"🚫 TARAMA İPTAL: {market_analysis['reason']}")
+            bot.send_telegram_message(
+                f"🚫 <b>Tarama İptal Edildi</b>\n\n"
+                f"📊 <b>BTC Market:</b> {market_analysis['regime']}\n"
+                f"🎯 <b>Multi-TF:</b> {market_analysis['multi_tf']}\n"
+                f"📈 <b>Tutarlılık:</b> %{market_analysis['consistency']:.0f}\n\n"
+                f"❌ <b>Sebep:</b> {market_analysis['reason']}\n\n"
+                f"⚠️ <i>Sadece Bull/Bear trend + 3/4 TF + %75+ tutarlılık durumunda sinyal verilir.</i>"
+            )
+            return 0
+        
+        # Market uygunsa tarama yap
+        logger.info(f"✅ Market uygun - Tarama başlatılıyor")
         start_time = time.time()
         matches = bot.run_scan()
         scan_duration = time.time() - start_time
@@ -1093,7 +1197,7 @@ def main():
         # SADECE SİNYAL VARSA MESAJ GÖNDER
         if matches:
             # Özet mesaj gönder
-            message = bot.format_telegram_message(matches, market_regime)
+            message = bot.format_telegram_message(matches, market_analysis['regime'])
             success = bot.send_telegram_message(message)
         else:
             # Sinyal yoksa hiç mesaj gönderme
