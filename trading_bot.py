@@ -328,11 +328,11 @@ class CryptoBotGitHub:
                 current_tf = current_data[tf_key]
                 position_tf = position_tf_data
                 
-                # 11 faktör karşılaştırması
+                # 11 faktör karşılaştırması - pozisyon dosyasındaki gerçek isimler
                 factors = [
-                    'ma_order', 'rsi', 'macd_signal', 'bb_position', 'volume_ma', 
-                    'price_change', 'volatility', 'support_resistance', 'fibonacci_level',
-                    'momentum', 'trend_strength'
+                    'ma_order', 'rsi', 'macd', 'bollinger', 'volume_avg', 
+                    'price_current', 'volatility', 'support_resistance', 'funding_rate',
+                    'stats_24h', 'btc_correlation'
                 ]
                 
                 tf_total = 0
@@ -393,19 +393,19 @@ class CryptoBotGitHub:
                 if not candles:
                     return None  # Veri yoksa skip
                 
-                # Simüle edilmiş analiz verisi (gerçek analiz yerine)
+                # Simüle edilmiş analiz verisi - pozisyon dosyasıyla uyumlu format
                 current_data[f"{tf}_data"] = {
                     'ma_order': self.get_ma_order(candles),
                     'rsi': 50 + (len(candles) % 40),  # 50-90 arası simülasyon
-                    'macd_signal': 'bullish' if candles[-1] > candles[-10] else 'bearish',
-                    'bb_position': 'middle',
-                    'volume_ma': 1.2,
-                    'price_change': ((candles[-1] - candles[-24]) / candles[-24]) * 100 if len(candles) > 24 else 0,
-                    'volatility': np.std(candles[-20:]) if len(candles) >= 20 else 0,
-                    'support_resistance': 'support',
-                    'fibonacci_level': '50%',
-                    'momentum': 'positive',
-                    'trend_strength': 'strong'
+                    'macd': [-0.1, 0.0, -0.1],  # [macd_line, signal_line, histogram] 
+                    'bollinger': [candles[-1] * 1.02, candles[-1], candles[-1] * 0.98],  # [upper, middle, lower]
+                    'volume_avg': candles[-1],
+                    'price_current': candles[-1],
+                    'volatility': float(np.std(candles[-20:])) if len(candles) >= 20 else 0.5,
+                    'support_resistance': {'support': candles[-1] * 0.98, 'resistance': candles[-1] * 1.02},
+                    'funding_rate': 0.0,
+                    'stats_24h': {'price_change_24h': 1.0},
+                    'btc_correlation': 0.5
                 }
             
             return current_data
@@ -481,7 +481,13 @@ class CryptoBotGitHub:
                     # Eşleşen pozisyonlar
                     matches = self.find_matching_positions(current_data)
                     
-                    if matches:  # ULTRA SIKICI kriterlerden geçenler
+                    # Debug için ilk coin'de detay log
+                    if processed < 3:
+                        logger.info(f"DEBUG {symbol}: {len(matches)} eşleşme bulundu")
+                        if matches:
+                            logger.info(f"DEBUG {symbol}: En iyi eşleşme %{matches[0]['score']['match_percentage']}")
+                    
+                    if matches:  # Minimum kriterlerden geçenler
                         best_match = matches[0]
                         signals_found.append({
                             'symbol': symbol,
