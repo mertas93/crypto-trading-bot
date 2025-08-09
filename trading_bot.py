@@ -361,11 +361,8 @@ class CryptoBotGitHub:
             overall_percentage = (matches / total_factors) * 100
             multi_tf_score = multi_tf_matches  # Maksimum 4 (4 timeframe)
             
-            # ÇOK BASIT TEST - neredeyse her şey geçsin
-            qualified = (
-                total_factors > 0 and  # En az 1 faktör var
-                matches > 0  # En az 1 eşleşme var
-            )
+            # ULTRA BASIT TEST - HERKES GEÇSİN!  
+            qualified = total_factors > 0  # Sadece veri varsa geçsin
             
             return {
                 'match_percentage': round(overall_percentage, 1),
@@ -505,7 +502,10 @@ class CryptoBotGitHub:
                 logger.info(f"📢 {len(signals_found)} sinyal Telegram'a gönderildi")
             else:
                 logger.info("📭 Kriterleri karşılayan sinyal bulunamadı")
-                # İptal durumunda mesaj GÖNDERME - sadece log
+                # ZORUNLU TEST MESAJI - Bu test için her zaman gönder
+                test_message = f"🧪 <b>TEST MESAJI</b>\n\n📊 {processed} coin tarandı\n⏰ {datetime.now().strftime('%H:%M:%S')}\n\n🔥 <b>Bot çalışıyor!</b>"
+                self.send_telegram_message(test_message)
+                logger.info("📢 Test mesajı gönderildi")
                 
         except Exception as e:
             error_msg = f"❌ Analiz hatası: {str(e)}"
