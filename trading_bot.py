@@ -949,7 +949,7 @@ class CryptoBotGitHub:
             {
                 'name': 'Binance (retry)',
                 'url': 'https://api.binance.com/api/v3/klines',
-                'params': {'symbol': 'BTCUSDT', 'interval': mapping['interval'], 'limit': mapping['limit']}
+                'params': {'symbol': 'BTCUSDT', 'interval': '1h', 'limit': mapping['limit']}
             }
         ]
         
