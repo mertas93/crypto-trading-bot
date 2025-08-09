@@ -523,7 +523,14 @@ class TradingAnalyzer:
     
     def get_fallback_coin_list(self):
         """API hatası durumunda kullanılacak kapsamlı coin listesi"""
-        fallback_coins = [
+        # Test için sadece 10 coin
+        test_coins = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT',
+                     'DOGEUSDT', 'SOLUSDT', 'MATICUSDT', 'DOTUSDT', 'LTCUSDT']
+        
+        print("🧪 TEST MODU: Sadece 10 coin taranacak")
+        return test_coins
+        
+        fallback_coins_full = [
             # Top 50 Major Coins
             'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'DOGEUSDT', 'SOLUSDT', 'MATICUSDT', 'DOTUSDT', 'LTCUSDT',
             'AVAXUSDT', 'LINKUSDT', 'ATOMUSDT', 'UNIUSDT', 'FILUSDT', 'TRXUSDT', 'ETCUSDT', 'XLMUSDT', 'VETUSDT', 'ICXUSDT',
