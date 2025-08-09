@@ -3457,8 +3457,11 @@ def main():
     print(f"📊 {len(analyzer.positions_data)} pozisyon yüklendi")
     
     if not analyzer.positions_data:
-        print("❌ Pozisyon verisi bulunamadı! Önce pozisyon kayıt yapmalısınız.")
-        return
+        print("⚠️ Pozisyon verisi yok - basit sinyal sistemi kullanılıyor")
+        # Basit sinyal sistemi için pozisyonsuz çalış
+        use_simple_signals = True
+    else:
+        use_simple_signals = False
     
     # Coin listesi al
     crypto_list = analyzer.get_crypto_list()
@@ -3467,7 +3470,11 @@ def main():
         return
     
     print(f"🔍 {len(crypto_list)} coin taranacak...")
-    print("📋 Kriterler: 4 timeframe'den 3'ü eşleşmeli (%75+), pozisyon tutma %85+")
+    
+    if use_simple_signals:
+        print("📋 Kriterler: 4 timeframe'in tamamı başarılı (%100), 14 teknik kriter")
+    else:
+        print("📋 Kriterler: 4 timeframe'den 3'ü eşleşmeli (%75+), pozisyon tutma %85+")
     
     scanned = 0
     signals_sent = 0
@@ -3512,14 +3519,33 @@ def main():
             timeframe_success_count = sum(1 for tf, data in current_analysis.items() if data is not None)
             timeframe_success_rate = (timeframe_success_count / 4) * 100  # 4 timeframe'den kaçı başarılı
             
-            # Kriterler: %75+ timeframe başarı + %85+ pozisyon eşleşmesi
-            if timeframe_success_rate >= 75 and best_match >= 85:
+            # Kriterler kontrolü
+            if use_simple_signals:
+                # Basit sistem: sadece %100 timeframe başarı
+                signal_condition = timeframe_success_rate >= 100
+            else:
+                # Gelişmiş sistem: %75+ timeframe başarı + %85+ pozisyon eşleşmesi
+                signal_condition = timeframe_success_rate >= 75 and best_match >= 85
+            
+            if signal_condition:
                 signals_sent += 1
                 print(f"🎯 SİGNAL: {symbol} - TF:%{timeframe_success_rate:.0f} Eşleşme:%{best_match:.0f}%")
                 
                 # Direk mesaj gönder
                 timestamp = datetime.now().strftime('%H:%M:%S')
-                message = f"""🚀 <b>YENİ SİGNAL</b>
+                
+                if use_simple_signals:
+                    message = f"""🚀 <b>YENİ SİGNAL</b>
+
+💰 <b>Coin:</b> {symbol}
+⏰ <b>Zaman:</b> {timestamp}
+📊 <b>Timeframe Başarı:</b> %{timeframe_success_rate:.0f} ({timeframe_success_count}/4)
+🔍 <b>Taranan:</b> {scanned}/{len(crypto_list)}
+⚡ <b>Sistem:</b> Basit analiz (14 kriter)
+
+🤖 <i>Otomatik trading analizi</i>"""
+                else:
+                    message = f"""🚀 <b>YENİ SİGNAL</b>
 
 💰 <b>Coin:</b> {symbol}
 ⏰ <b>Zaman:</b> {timestamp}
