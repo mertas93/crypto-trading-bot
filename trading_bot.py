@@ -211,13 +211,11 @@ class AdvancedTradingBot:
                 url = f"https://min-api.cryptocompare.com/data/price"
                 params = {'fsym': crypto_symbol, 'tsyms': 'USD'}
                 
-                print(f"   📡 {symbol} -> CryptoCompare API çağrısı...")
                 response = requests.get(url, params=params, timeout=5)
                 
                 if response.status_code == 200:
                     data = response.json()
                     price = float(data['USD'])
-                    print(f"   ✅ {symbol} - CryptoCompare fiyat: ${price:,.4f}")
                     
                     # Gerçek fiyat bazlı veri serisi
                     prices = []
@@ -386,9 +384,9 @@ class AdvancedTradingBot:
         scanned = 0
         
         # Tek tek işlem - donma önleme
-        # Test: İlk 3 coin
-        coins_to_scan = coins[:3]
-        max_coins = 3
+        # CryptoCompare API - tam kapasiteye test
+        max_coins = len(coins)  # Her durumda 380 coin
+        coins_to_scan = coins[:max_coins]
         
         for i, symbol in enumerate(coins_to_scan):
             try:
