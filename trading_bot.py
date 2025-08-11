@@ -426,7 +426,7 @@ class AdvancedTradingBot:
                         best_match = max(best_match, match_rate)
                     
                         
-                    if timeframe_success_rate >= 50 and best_match >= 10:  # Test: Son kontrol
+                    if timeframe_success_rate >= 50 and best_match >= 0:  # Test: Kesin sinyal
                         # En iyi eşleşen pozisyonu bul
                         best_position = None
                         for position in self.positions_data:
