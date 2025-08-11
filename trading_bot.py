@@ -206,17 +206,18 @@ class AdvancedTradingBot:
                 self._price_cache = {}
             
             try:
-                # Binance API - ücretsiz ve yüksek limit
-                url = f"https://api.binance.com/api/v3/ticker/price"
-                params = {'symbol': symbol}
+                # CryptoCompare API - coğrafi kısıt yok
+                crypto_symbol = symbol.replace('USDT', '')  # BTCUSDT -> BTC
+                url = f"https://min-api.cryptocompare.com/data/price"
+                params = {'fsym': crypto_symbol, 'tsyms': 'USD'}
                 
-                print(f"   📡 {symbol} -> Binance API çağrısı...")
+                print(f"   📡 {symbol} -> CryptoCompare API çağrısı...")
                 response = requests.get(url, params=params, timeout=5)
                 
                 if response.status_code == 200:
                     data = response.json()
-                    price = float(data['price'])
-                    print(f"   ✅ {symbol} - Binance fiyat: ${price:,.4f}")
+                    price = float(data['USD'])
+                    print(f"   ✅ {symbol} - CryptoCompare fiyat: ${price:,.4f}")
                     
                     # Gerçek fiyat bazlı veri serisi
                     prices = []
@@ -230,11 +231,11 @@ class AdvancedTradingBot:
                     
                     return prices
                 else:
-                    print(f"   ❌ {symbol} - Binance API hatası: {response.status_code}")
+                    print(f"   ❌ {symbol} - CryptoCompare API hatası: {response.status_code}")
                     return None
                 
             except Exception as e:
-                print(f"   ❌ {symbol} - Binance exception: {e}")
+                print(f"   ❌ {symbol} - CryptoCompare exception: {e}")
                 return None
             
         except Exception as e:
