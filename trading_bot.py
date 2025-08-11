@@ -352,18 +352,19 @@ class AdvancedTradingBot:
         print(f"🔍 {len(coins)} coin taranacak...")
         
         if self.positions_data:
-            print("📋 TEST KRİTERLERİ: 4 timeframe'den 2'si (%25+), pozisyon eşleşme %10+")
+            print("📋 Kriterler: 4 timeframe'den 3'ü (%75+), pozisyon eşleşme %85+")
         else:
-            print("📋 TEST KRİTERLERİ: 2 timeframe başarı (%25+), 14 teknik kriter")
+            print("📋 Kriterler: 4 timeframe başarı (%100), 14 teknik kriter")
         
         signals = []
         scanned = 0
         
         # Tek tek işlem - donma önleme
-        for i, symbol in enumerate(coins[:5]):  # Test: Sadece 5 coin
+        for i, symbol in enumerate(coins):  # Tüm coinler
             try:
                 scanned += 1
-                print(f"⏳ {scanned}/5 - {symbol} analiz ediliyor...")
+                if scanned % 50 == 0 or scanned <= 10:
+                    print(f"⏳ {scanned}/{len(coins)} - {symbol}")
                 
                 # Multi-timeframe analiz
                 current_analysis = self.analyze_multi_timeframe_fast(symbol)
@@ -372,9 +373,7 @@ class AdvancedTradingBot:
                 valid_timeframes = sum(1 for tf in current_analysis.values() if tf is not None)
                 timeframe_success_rate = (valid_timeframes / 4) * 100
                 
-                print(f"    📊 {symbol}: {valid_timeframes}/4 timeframe başarılı (%{timeframe_success_rate:.0f})")
-                
-                if valid_timeframes < 1:  # Test: En az 1 timeframe gerekli (çok düşük)
+                if valid_timeframes < 3:  # En az 3 timeframe gerekli
                     continue
                 
                 signal_found = False
@@ -388,9 +387,8 @@ class AdvancedTradingBot:
                         match_rate = self.check_position_match_fast(current_analysis, position['data'])
                         best_match = max(best_match, match_rate)
                     
-                    print(f"    🎯 {symbol}: En iyi eşleşme %{best_match:.1f}")
                     
-                    if timeframe_success_rate >= 1 and best_match >= 0:  # Test: %0 bile kabul
+                    if timeframe_success_rate >= 75 and best_match >= 85:  # Normal kriterler
                         signal_found = True
                         signal_data = {
                             'symbol': symbol,
@@ -398,10 +396,9 @@ class AdvancedTradingBot:
                             'match_rate': best_match,
                             'type': 'POSITION_MATCH'
                         }
-                        print(f"    ✅ {symbol}: SİGNAL BULUNDU!")
                 else:
                     # Basit analiz modu - TEST KRİTERLERİ  
-                    if timeframe_success_rate >= 1:  # Test: %1+ başarı yeterli
+                    if timeframe_success_rate >= 100:  # Tüm timeframeler başarılı
                         signal_found = True
                         signal_data = {
                             'symbol': symbol,
