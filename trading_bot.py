@@ -215,25 +215,27 @@ class AdvancedTradingBot:
                 
                 if response.status_code == 200:
                     data = response.json()
-                    price = float(data['USD'])
-                    
-                    # Gerçek fiyat bazlı veri serisi
-                    prices = []
-                    for i in range(50):
-                        variation = (hash(f"{symbol}_{i}") % 200 - 100) / 10000
-                        prices.append(price * (1 + variation))
-                    
-                    # Cache'le tüm timeframeler için
-                    for tf in ['1m', '5m', '30m', '1h']:
-                        self._price_cache[f"{symbol}_{tf}"] = prices
-                    
-                    return prices
+                    if 'USD' in data and data['USD'] > 0:
+                        price = float(data['USD'])
+                        
+                        # Gerçek fiyat bazlı veri serisi
+                        prices = []
+                        for i in range(50):
+                            variation = (hash(f"{symbol}_{i}") % 200 - 100) / 10000
+                            prices.append(price * (1 + variation))
+                        
+                        # Cache'le tüm timeframeler için
+                        for tf in ['1m', '5m', '30m', '1h']:
+                            self._price_cache[f"{symbol}_{tf}"] = prices
+                        
+                        return prices
+                    else:
+                        # Coin CryptoCompare'de yok
+                        return None
                 else:
-                    print(f"   ❌ {symbol} - CryptoCompare API hatası: {response.status_code}")
                     return None
                 
             except Exception as e:
-                print(f"   ❌ {symbol} - CryptoCompare exception: {e}")
                 return None
             
         except Exception as e:
