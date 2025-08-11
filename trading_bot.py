@@ -484,14 +484,26 @@ class AdvancedTradingBot:
                         if 'matched_position' in signal_data and signal_data['matched_position']:
                             pos = signal_data['matched_position']
                             
-                            # Debug: Pozisyon yapısını göster
-                            print(f"    🔍 Pozisyon keys: {list(pos.keys())}")
+                            # Pozisyon bilgilerini çıkar
+                            pos_symbol = pos.get('symbol', 'Bilinmiyor')
+                            pos_date = pos.get('timestamp', 'Bilinmiyor')
                             
-                            # Pozisyon bilgilerini çıkar - farklı field isimleri dene
-                            pos_symbol = pos.get('symbol', pos.get('coin', pos.get('pair', 'Bilinmiyor')))
-                            pos_side = pos.get('side', pos.get('direction', pos.get('type', 'Bilinmiyor')))
-                            pos_date = pos.get('date', pos.get('timestamp', pos.get('time', 'Bilinmiyor')))
-                            pos_price = pos.get('price', pos.get('entry_price', pos.get('open_price', 'Bilinmiyor')))
+                            # result veya data içinden side ve price bilgisi çıkar
+                            pos_result = pos.get('result', {})
+                            pos_data_info = pos.get('data', {})
+                            
+                            # Debug: result ve data içeriğini göster
+                            print(f"    📈 Result keys: {list(pos_result.keys()) if pos_result else 'Boş'}")
+                            if pos_data_info:
+                                # data çok büyük olabilir, sadece ilk 5 key'i göster
+                                data_keys = list(pos_data_info.keys())[:5]
+                                print(f"    📊 Data keys (ilk 5): {data_keys}")
+                            
+                            pos_side = pos_result.get('side', pos_result.get('direction', 
+                                      pos_data_info.get('side', pos_data_info.get('direction', 'Bilinmiyor'))))
+                            
+                            pos_price = pos_result.get('price', pos_result.get('entry_price', 
+                                       pos_result.get('open_price', pos_data_info.get('price', 'Bilinmiyor'))))
                             
                             # Side için emoji
                             side_emoji = "🟢 LONG" if pos_side.upper() == 'LONG' else "🔴 SHORT" if pos_side.upper() == 'SHORT' else f"⚪ {pos_side}"
