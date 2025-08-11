@@ -204,6 +204,7 @@ class AdvancedTradingBot:
             # Rate limit önleme - cache kontrolü
             cache_key = f"{symbol}_{timeframe}"
             if hasattr(self, '_price_cache') and cache_key in self._price_cache:
+                print(f"   🔄 {symbol} - Cache hit")
                 return self._price_cache[cache_key]
             
             if not hasattr(self, '_price_cache'):
@@ -224,6 +225,7 @@ class AdvancedTradingBot:
                     data = response.json()
                     if coin_id in data and 'usd' in data[coin_id]:
                         price = data[coin_id]['usd']
+                        print(f"   ✅ {symbol} - API başarılı: ${price:,.2f}")
                         # Gerçek fiyat bazlı simülasyon
                         prices = []
                         for i in range(50):
@@ -237,6 +239,7 @@ class AdvancedTradingBot:
                         return prices
                 
                 # API başarısızsa simülasyon
+                print(f"   ❌ {symbol} - API başarısız, simülasyon kullanılıyor")
                 base_price = hash(symbol) % 10000 + 1000
                 prices = []
                 for i in range(50):
@@ -413,9 +416,9 @@ class AdvancedTradingBot:
         scanned = 0
         
         # Tek tek işlem - donma önleme
-        # GitHub Actions için coin limit
-        max_coins = 200 if os.getenv('GITHUB_ACTIONS') else len(coins)  
-        coins_to_scan = coins[:max_coins]
+        # Debug: İlk 5 coin
+        coins_to_scan = coins[:5]
+        max_coins = 5
         
         for i, symbol in enumerate(coins_to_scan):
             try:
