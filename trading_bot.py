@@ -364,9 +364,9 @@ class AdvancedTradingBot:
         print(f"🔍 {len(coins)} coin taranacak...")
         
         if self.positions_data:
-            print("📋 Kriterler: 4 timeframe'den 3'ü (%75+), pozisyon eşleşme %85+")
+            print("📋 TEST KRİTERLERİ: 4 timeframe'den 2'si (%50+), pozisyon eşleşme %30+")
         else:
-            print("📋 Kriterler: 4 timeframe başarı, 14 teknik kriter")
+            print("📋 TEST KRİTERLERİ: 2 timeframe başarı (%50+), 14 teknik kriter")
         
         signals = []
         scanned = 0
@@ -385,13 +385,13 @@ class AdvancedTradingBot:
                 valid_timeframes = sum(1 for tf in current_analysis.values() if tf is not None)
                 timeframe_success_rate = (valid_timeframes / 4) * 100
                 
-                if valid_timeframes < 3:  # En az 3 timeframe gerekli
+                if valid_timeframes < 2:  # Test: En az 2 timeframe gerekli (düşük)
                     continue
                 
                 signal_found = False
                 
                 if self.positions_data:
-                    # Pozisyon eşleşme modu
+                    # Pozisyon eşleşme modu - TEST KRİTERLERİ
                     best_match = 0
                     for position in self.positions_data:
                         if 'data' not in position:
@@ -399,7 +399,7 @@ class AdvancedTradingBot:
                         match_rate = self.check_position_match_fast(current_analysis, position['data'])
                         best_match = max(best_match, match_rate)
                     
-                    if timeframe_success_rate >= 75 and best_match >= 85:
+                    if timeframe_success_rate >= 50 and best_match >= 30:  # Test: Çok düşük kriterler
                         signal_found = True
                         signal_data = {
                             'symbol': symbol,
@@ -408,8 +408,8 @@ class AdvancedTradingBot:
                             'type': 'POSITION_MATCH'
                         }
                 else:
-                    # Basit analiz modu
-                    if timeframe_success_rate >= 100:  # Tüm timeframeler başarılı
+                    # Basit analiz modu - TEST KRİTERLERİ  
+                    if timeframe_success_rate >= 50:  # Test: %50+ başarı yeterli
                         signal_found = True
                         signal_data = {
                             'symbol': symbol,
