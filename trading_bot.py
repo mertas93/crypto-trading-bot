@@ -446,7 +446,7 @@ class AdvancedTradingBot:
                     
                     print(f"    📊 {symbol}: TF=%{timeframe_success_rate:.0f}, Match=%{best_match:.1f}")
                     
-                    if timeframe_success_rate >= 50 and best_match >= 30:  # Test kriterleri
+                    if timeframe_success_rate >= 50 and best_match >= 0:  # Test: %0 eşleşme bile kabul
                         signal_found = True
                         signal_data = {
                             'symbol': symbol,
