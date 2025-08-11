@@ -390,7 +390,7 @@ class AdvancedTradingBot:
                     
                     print(f"    🎯 {symbol}: En iyi eşleşme %{best_match:.1f}")
                     
-                    if timeframe_success_rate >= 1 and best_match >= 1:  # Test: Her şey kabul
+                    if timeframe_success_rate >= 1 and best_match >= 0:  # Test: %0 bile kabul
                         signal_found = True
                         signal_data = {
                             'symbol': symbol,
