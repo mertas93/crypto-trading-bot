@@ -230,9 +230,11 @@ class AdvancedTradingBot:
                     
                     return prices
                 else:
+                    print(f"   ❌ {symbol} - Binance API hatası: {response.status_code}")
                     return None
                 
             except Exception as e:
+                print(f"   ❌ {symbol} - Binance exception: {e}")
                 return None
             
         except Exception as e:
