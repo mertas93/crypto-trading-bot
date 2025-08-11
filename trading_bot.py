@@ -413,9 +413,9 @@ class AdvancedTradingBot:
         scanned = 0
         
         # Tek tek işlem - donma önleme
-        # GitHub Actions için coin limit
-        max_coins = 200 if os.getenv('GITHUB_ACTIONS') else len(coins)
-        coins_to_scan = coins[:max_coins]
+        # Son test: İlk 10 coin
+        coins_to_scan = coins[:10]
+        max_coins = 10
         
         for i, symbol in enumerate(coins_to_scan):
             try:
@@ -445,7 +445,7 @@ class AdvancedTradingBot:
                         best_match = max(best_match, match_rate)
                     
                         
-                    if timeframe_success_rate >= 75 and best_match >= 85:  # Normal kriterler
+                    if timeframe_success_rate >= 50 and best_match >= 10:  # Test: Son kontrol
                         # En iyi eşleşen pozisyonu bul
                         best_position = None
                         for position in self.positions_data:
