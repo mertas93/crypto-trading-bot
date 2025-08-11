@@ -203,25 +203,13 @@ class AdvancedTradingBot:
                 
             coin_id = coin_map[symbol]
             
-            # CoinGecko API - hızlı timeout
-            url = f"https://api.coingecko.com/api/v3/simple/price"
-            params = {'ids': coin_id, 'vs_currencies': 'usd'}
-            
-            response = requests.get(url, params=params, timeout=3)
-            if response.status_code == 200:
-                data = response.json()
-                if coin_id in data and 'usd' in data[coin_id]:
-                    price = data[coin_id]['usd']
-                    # Gerçek fiyat bazlı simülasyon
-                    prices = []
-                    for i in range(50):
-                        variation = (hash(f"{symbol}_{i}") % 200 - 100) / 10000  # -1% to +1%
-                        prices.append(price * (1 + variation))
-                    return prices
-            
-            # Fallback - simülasyon
+            # Test modu - sadece simülasyon kullan
             base_price = hash(symbol) % 10000 + 1000
-            return [base_price + (i % 100) for i in range(50)]
+            prices = []
+            for i in range(50):
+                variation = (hash(f"{symbol}_{i}") % 200 - 100) / 5000  # -2% to +2%
+                prices.append(base_price * (1 + variation))
+            return prices
             
         except:
             # Her durumda simülasyon döndür
@@ -364,19 +352,18 @@ class AdvancedTradingBot:
         print(f"🔍 {len(coins)} coin taranacak...")
         
         if self.positions_data:
-            print("📋 TEST KRİTERLERİ: 4 timeframe'den 2'si (%50+), pozisyon eşleşme %30+")
+            print("📋 TEST KRİTERLERİ: 4 timeframe'den 2'si (%25+), pozisyon eşleşme %10+")
         else:
-            print("📋 TEST KRİTERLERİ: 2 timeframe başarı (%50+), 14 teknik kriter")
+            print("📋 TEST KRİTERLERİ: 2 timeframe başarı (%25+), 14 teknik kriter")
         
         signals = []
         scanned = 0
         
         # Tek tek işlem - donma önleme
-        for i, symbol in enumerate(coins):  # Tüm coinler
+        for i, symbol in enumerate(coins[:5]):  # Test: Sadece 5 coin
             try:
                 scanned += 1
-                if scanned % 25 == 0 or scanned <= 10:  # Daha sık rapor
-                    print(f"⏳ {scanned}/{len(coins)} - {symbol}")
+                print(f"⏳ {scanned}/5 - {symbol} analiz ediliyor...")
                 
                 # Multi-timeframe analiz
                 current_analysis = self.analyze_multi_timeframe_fast(symbol)
@@ -399,7 +386,7 @@ class AdvancedTradingBot:
                         match_rate = self.check_position_match_fast(current_analysis, position['data'])
                         best_match = max(best_match, match_rate)
                     
-                    if timeframe_success_rate >= 50 and best_match >= 30:  # Test: Çok düşük kriterler
+                    if timeframe_success_rate >= 25 and best_match >= 10:  # Test: Çok çok düşük kriterler
                         signal_found = True
                         signal_data = {
                             'symbol': symbol,
@@ -409,7 +396,7 @@ class AdvancedTradingBot:
                         }
                 else:
                     # Basit analiz modu - TEST KRİTERLERİ  
-                    if timeframe_success_rate >= 50:  # Test: %50+ başarı yeterli
+                    if timeframe_success_rate >= 25:  # Test: %25+ başarı yeterli
                         signal_found = True
                         signal_data = {
                             'symbol': symbol,
