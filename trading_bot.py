@@ -484,11 +484,14 @@ class AdvancedTradingBot:
                         if 'matched_position' in signal_data and signal_data['matched_position']:
                             pos = signal_data['matched_position']
                             
-                            # Pozisyon bilgilerini çıkar
-                            pos_symbol = pos.get('symbol', 'Bilinmiyor')
-                            pos_side = pos.get('side', 'Bilinmiyor')
-                            pos_date = pos.get('date', 'Bilinmiyor')
-                            pos_price = pos.get('price', 'Bilinmiyor')
+                            # Debug: Pozisyon yapısını göster
+                            print(f"    🔍 Pozisyon keys: {list(pos.keys())}")
+                            
+                            # Pozisyon bilgilerini çıkar - farklı field isimleri dene
+                            pos_symbol = pos.get('symbol', pos.get('coin', pos.get('pair', 'Bilinmiyor')))
+                            pos_side = pos.get('side', pos.get('direction', pos.get('type', 'Bilinmiyor')))
+                            pos_date = pos.get('date', pos.get('timestamp', pos.get('time', 'Bilinmiyor')))
+                            pos_price = pos.get('price', pos.get('entry_price', pos.get('open_price', 'Bilinmiyor')))
                             
                             # Side için emoji
                             side_emoji = "🟢 LONG" if pos_side.upper() == 'LONG' else "🔴 SHORT" if pos_side.upper() == 'SHORT' else f"⚪ {pos_side}"
