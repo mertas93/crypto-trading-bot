@@ -208,8 +208,7 @@ class AdvancedTradingBot:
                 url = f"https://api.coingecko.com/api/v3/simple/price"
                 params = {'ids': coin_id, 'vs_currencies': 'usd'}
                 
-                response = requests.get(url, params=params, timeout=3)
-                time.sleep(0.2)  # Rate limiting - her coin arası 200ms bekle
+                response = requests.get(url, params=params, timeout=1)  # Çok hızlı timeout
                 
                 if response.status_code == 200:
                     data = response.json()
@@ -388,7 +387,7 @@ class AdvancedTradingBot:
         scanned = 0
         
         # Tek tek işlem - donma önleme
-        for i, symbol in enumerate(coins):  # Tüm coinler
+        for i, symbol in enumerate(coins[:50]):  # Test: İlk 50 coin
             try:
                 scanned += 1
                 if scanned % 50 == 0 or scanned <= 10:
