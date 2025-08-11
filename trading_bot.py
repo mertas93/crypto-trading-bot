@@ -24,6 +24,9 @@ class AdvancedTradingBot:
         # API ayarları - Hızlı timeout
         self.timeout = 3  # 3 saniye timeout
         
+        # Cache temizle - her çalıştırmada fresh start
+        self._price_cache = {}
+        
     def load_positions(self):
         """Pozisyon verilerini yükle"""
         try:
@@ -207,11 +210,13 @@ class AdvancedTradingBot:
                 url = f"https://api.binance.com/api/v3/ticker/price"
                 params = {'symbol': symbol}
                 
+                print(f"   📡 {symbol} -> Binance API çağrısı...")
                 response = requests.get(url, params=params, timeout=5)
                 
                 if response.status_code == 200:
                     data = response.json()
                     price = float(data['price'])
+                    print(f"   ✅ {symbol} - Binance fiyat: ${price:,.4f}")
                     
                     # Gerçek fiyat bazlı veri serisi
                     prices = []
@@ -378,9 +383,9 @@ class AdvancedTradingBot:
         scanned = 0
         
         # Tek tek işlem - donma önleme
-        # Binance API - yüksek limit
-        max_coins = 200 if os.getenv('GITHUB_ACTIONS') else len(coins)
-        coins_to_scan = coins[:max_coins]
+        # Test: İlk 3 coin
+        coins_to_scan = coins[:3]
+        max_coins = 3
         
         for i, symbol in enumerate(coins_to_scan):
             try:
