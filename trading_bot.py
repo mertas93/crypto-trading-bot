@@ -236,8 +236,13 @@ class MarketInfo:
             
         print(f"{multi_emoji} Multi-TF (30dk odak): {multi_tf_result}")
         
-        # Telegram mesajı oluştur
-        telegram_message = f"""<b>📊 MARKET DURUMU</b>
+        # Telegram mesajı sadece şartları sağlıyorsa gönder
+        # Şart: Multi-TF 3/3 VE BTC Trend Tutarlılığı 75% ve üstü
+        multi_tf_count = int(multi_tf_result.split('/')[0])  # "3/3" -> 3
+        
+        if multi_tf_count == 3 and btc_consistency >= 75:
+            # Telegram mesajı oluştur
+            telegram_message = f"""🚀 <b>GÜÇLÜ MARKET SİNYALİ!</b>
 
 <b>MARKET REJIMİ:</b> ✅ Rejim: {regime}
 
@@ -247,10 +252,19 @@ class MarketInfo:
 
 ⏰ <b>Zaman:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
-🤖 <i>Otomatik market analizi</i>"""
-        
-        # Telegram'a gönder
-        self.send_telegram_message(telegram_message)
+🎯 <b>ŞARTLAR SAĞLANDI:</b>
+✅ Multi-TF: 3/3 Mükemmel
+✅ BTC Tutarlılık: {btc_consistency}% (≥75%)
+
+🤖 <i>Güçlü market sinyali tespit edildi!</i>"""
+            
+            # Telegram'a gönder
+            print("\n🚀 ŞARTLAR SAĞLANDI - Telegram mesajı gönderiliyor...")
+            self.send_telegram_message(telegram_message)
+        else:
+            print(f"\n⏸️ Telegram mesajı gönderilmedi:")
+            print(f"   Multi-TF: {multi_tf_count}/3 (gerekli: 3/3)")
+            print(f"   BTC Tutarlılık: {btc_consistency}% (gerekli: ≥75%)")
 
 if __name__ == "__main__":
     market = MarketInfo()
