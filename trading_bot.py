@@ -388,7 +388,7 @@ class AdvancedTradingBot:
         scanned = 0
         
         # Tek tek işlem - donma önleme
-        for i, symbol in enumerate(coins[:10]):  # Test: İlk 10 coin
+        for i, symbol in enumerate(coins):  # Tüm coinler
             try:
                 scanned += 1
                 if scanned % 50 == 0 or scanned <= 10:
