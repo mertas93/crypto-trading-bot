@@ -204,7 +204,6 @@ class AdvancedTradingBot:
             # Rate limit önleme - cache kontrolü
             cache_key = f"{symbol}_{timeframe}"
             if hasattr(self, '_price_cache') and cache_key in self._price_cache:
-                print(f"   🔄 {symbol} - Cache hit")
                 return self._price_cache[cache_key]
             
             if not hasattr(self, '_price_cache'):
@@ -225,7 +224,6 @@ class AdvancedTradingBot:
                     data = response.json()
                     if coin_id in data and 'usd' in data[coin_id]:
                         price = data[coin_id]['usd']
-                        print(f"   ✅ {symbol} - API başarılı: ${price:,.2f}")
                         # Gerçek fiyat bazlı simülasyon
                         prices = []
                         for i in range(50):
@@ -239,7 +237,6 @@ class AdvancedTradingBot:
                         return prices
                 
                 # API başarısızsa simülasyon
-                print(f"   ❌ {symbol} - API başarısız, simülasyon kullanılıyor")
                 base_price = hash(symbol) % 10000 + 1000
                 prices = []
                 for i in range(50):
@@ -416,9 +413,9 @@ class AdvancedTradingBot:
         scanned = 0
         
         # Tek tek işlem - donma önleme
-        # Debug: İlk 5 coin
-        coins_to_scan = coins[:5]
-        max_coins = 5
+        # Test: İlk 50 coin
+        coins_to_scan = coins[:50]
+        max_coins = 50
         
         for i, symbol in enumerate(coins_to_scan):
             try:
@@ -448,7 +445,7 @@ class AdvancedTradingBot:
                         best_match = max(best_match, match_rate)
                     
                     
-                    if timeframe_success_rate >= 75 and best_match >= 85:  # Normal kriterler
+                    if timeframe_success_rate >= 50 and best_match >= 30:  # Test kriterleri
                         signal_found = True
                         signal_data = {
                             'symbol': symbol,
@@ -458,7 +455,7 @@ class AdvancedTradingBot:
                         }
                 else:
                     # Basit analiz modu - TEST KRİTERLERİ  
-                    if timeframe_success_rate >= 100:  # Tüm timeframeler başarılı
+                    if timeframe_success_rate >= 75:  # Test: %75+ başarı
                         signal_found = True
                         signal_data = {
                             'symbol': symbol,
