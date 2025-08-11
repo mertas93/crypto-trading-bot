@@ -1,41 +1,20 @@
 #!/usr/bin/env python3
 """
-Gelişmiş Trading Bot - 500 Coin + 14 Kriter + Multi-Timeframe
-Optimized için takılma önlendi
+Market Bilgisi Görüntüleyici - Sadece market durumu
 """
 import requests
-import time
-import os
 import json
-import threading
+import os
 from datetime import datetime
-import numpy as np
+import time
 
-class AdvancedTradingBot:
+class MarketInfo:
     def __init__(self):
+        self.binance_api = "https://api.binance.com/api/v3"
+        
         # Telegram ayarları
         self.bot_token = os.getenv('TELEGRAM_BOT_TOKEN', "8036527191:AAEGeUZHDb4AMLICFGmGl6OdrN4hrSaUpoQ")
         self.chat_id = os.getenv('TELEGRAM_CHAT_ID', "1119272011")
-        
-        # Pozisyon verileri yükle
-        self.positions_data = []
-        self.load_positions()
-        
-        # API ayarları - Hızlı timeout
-        self.timeout = 3  # 3 saniye timeout
-        
-        # Cache temizle - her çalıştırmada fresh start
-        self._price_cache = {}
-        
-    def load_positions(self):
-        """Pozisyon verilerini yükle"""
-        try:
-            with open('trading_positions.json', 'r', encoding='utf-8') as f:
-                self.positions_data = json.load(f)
-            print(f"📊 {len(self.positions_data)} pozisyon yüklendi")
-        except:
-            self.positions_data = []
-            print("⚠️ Pozisyon verisi yok - basit analiz modu")
 
     def send_telegram_message(self, message):
         """Telegram mesajı gönder"""
@@ -46,485 +25,233 @@ class AdvancedTradingBot:
                 'text': message,
                 'parse_mode': 'HTML'
             }
-            response = requests.post(url, data=data, timeout=5)
+            response = requests.post(url, data=data, timeout=10)
             if response.status_code == 200:
                 print("✅ Telegram mesajı gönderildi")
                 return True
-            return False
+            else:
+                print(f"❌ Telegram hatası: {response.status_code}")
+                return False
         except Exception as e:
             print(f"❌ Telegram hatası: {e}")
             return False
-
-    def get_500_coins(self):
-        """500+ coin listesi - hızlı yükleme"""
-        return [
-            # Top 100 Major Coins
-            'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'DOGEUSDT', 'SOLUSDT', 'MATICUSDT', 'DOTUSDT', 'LTCUSDT',
-            'AVAXUSDT', 'LINKUSDT', 'ATOMUSDT', 'UNIUSDT', 'FILUSDT', 'TRXUSDT', 'ETCUSDT', 'XLMUSDT', 'VETUSDT', 'ICXUSDT',
-            'ONTUSDT', 'NEOUSDT', 'QTUMUSDT', 'ZILUSDT', 'BATUSDT', 'ZECUSDT', 'DASHUSDT', 'ENJUSDT', 'MANAUSDT', 'SANDUSDT',
-            'AXSUSDT', 'CHZUSDT', 'FTMUSDT', 'NEARUSDT', 'AAVEUSDT', 'COMPUSDT', 'MKRUSDT', 'YFIUSDT', 'SUSHIUSDT', 'CRVUSDT',
-            'ONEUSDT', 'HOTUSDT', 'ALGOUSDT', 'KAVAUSDT', 'BANDUSDT', 'RLCUSDT', 'NMRUSDT', 'STORJUSDT', 'KNCUSDT', 'CAKEUSDT',
-            
-            # DeFi + Gaming (100 coin daha)
-            '1INCHUSDT', 'ALPACAUSDT', 'BAKEUSDT', 'BURGERUSDT', 'XVSUSDT', 'SXPUSDT', 'CFXUSDT', 'TLMUSDT', 'IDUSDT', 'DFUSDT',
-            'FIDAUSDT', 'FRONTUSDT', 'MDTUSDT', 'STMXUSDT', 'DENTUSDT', 'KEYUSDT', 'HARDUSDT', 'STRAXUSDT', 'UNFIUSDT', 'ROSEUSDT',
-            'AVAUSDT', 'XEMUSDT', 'AUCTIONUSDT', 'TVKUSDT', 'BADGERUSDT', 'FISUSDT', 'OMUSDT', 'PONDUSDT', 'DEGOUSDT', 'ALICEUSDT',
-            'LINAUSDT', 'PERPUSDT', 'RAMPUSDT', 'SUPERUSDT', 'EPSUSDT', 'AUTOUSDT', 'TKOUSDT', 'PUNDIXUSDT', 'BTCSTUSDT', 'TRUUSDT',
-            'CKBUSDT', 'TWTUSDT', 'FIROUSDT', 'LITUSDT', 'SFPUSDT', 'DODOUSDT', 'SLPUSDT', 'FLOWUSDT', 'IMXUSDT', 'GALUSDT',
-            
-            # Layer 2 + New coins (100 coin daha)
-            'OPUSDT', 'ARBUSDT', 'LDOUSDT', 'STGUSDT', 'METISUSDT', 'BLOBUSDT', 'APESUSDT', 'JASMYUSDT', 'DARUSDT', 'GMXUSDT',
-            'MAGICUSDT', 'RDNTUSDT', 'HFTUSDT', 'PHBUSDT', 'HOOKUSDT', 'JOBTUSDT', 'ARKMUSDT', 'WLDUSDT', 'PENDLEUSDT', 'CYBERUSDT',
-            'MAVUSDT', 'SPACEUSDT', 'VELTUSDT', 'BLURUSDT', 'VANRYUSDT', 'JTOUSDT', 'ACEUSDT', 'NFPUSDT', 'AIUSDT', 'XAIUSDT',
-            'MANTAUSDT', 'ALTUSDT', 'PYTHUSDT', 'RONINUSDT', 'DYMUSDT', 'PIXELUSDT', 'STRKSUSDT', 'PORTALUSDT', 'PDAUSDT', 'AXLUSDT',
-            'WIFUSDT', 'ETHFIUSDT', 'ENAAUSDT', 'WUSDT', 'TNSRUSDT', 'SAGAUSDT', 'TAOUSDT', 'OMNIUSDT', 'REZUSDT', 'BBUSDT',
-            
-            # Meme + AI (100 coin daha)  
-            'SHIBUSDT', 'FLOKIUSDT', 'PEPEUSDT', '1000PEPEUSDT', 'BONKUSDT', 'RATSUSDT', '1000SATSUSDT', 'ORDIUSDT', 'BOMEUSDT', 'MEMEUSDT',
-            'NOTUSDT', 'DOGUSDT', 'TURKNUSDT', 'BABYDOGEUSDT', '1000BONKUSDT', 'WIFHATUSDT', 'POPUSDT', 'MYOUSDT', 'FETUSDT', 'AGIXUSDT',
-            'OCEANUSDT', 'RNDRUSE', 'THETAUSDT', 'GRTUSDT', 'PHAUSDT', 'CTXCUSDT', 'NUUSDT', 'CTSIUSDT', 'DATAUSDT', 'ORIGNUSDT',
-            'QNTUSDT', 'VITEUSDT', 'ARDRUSDT', 'NULSUSDT', 'POWRUSDT', 'HBARUSDT', 'KSMUSDT', 'RUNEUSDT', 'LUNAUSDT', 'WAVESUSDT',
-            'EGLDUSDT', 'QTUMSD', 'IOTAUSDT', 'SCUSDT', 'ZENUSDT', 'FTTUSDT', 'CROUSDT', 'KCSUSDT', 'HTUSDT', 'OKBUSD',
-            
-            # Additional 200+ coins
-            'LEXUSDT', 'BTTUSDT', 'WINUSDT', 'WBTCUSDT', 'STETHUSDT', 'FDUSDUSDT', 'TUSDUSDT', 'USTCUSDT', 'JUPUSDT', 'TNERUSDT',
-            'SEIUSDT', 'TIAUSDT', 'BEAMUSDT', 'PIVXUSDT', 'VICUSDT', 'CITYUSDT', 'LRCUSDT', 'REQUSDT', 'AMPUSDT', 'AUDIOUSDT',
-            'ALPINUSDT', 'ASRUSDT', 'ATMUSDT', 'BARUSDT', 'PSGSUSDT', 'ACMUSDT', 'JUVUSDT', 'PORTOUSDT', 'SANTOSUSDT', 'IBFKUSDT',
-            'OGNUSDT', 'NKNUSDT', 'GTCUSDT', 'ADXUSDT', 'CLVUSDT', 'MINAUSDT', 'FARMUSDT', 'WAXPUSDT', 'GNOUSDT', 'XECUSDT',
-            'ELFUSDT', 'INJUSDT', 'IOSTUSDT', 'IOTXUSDT', 'IRISUSDT', 'JSTUSDT', 'JUSTUSDT', 'LENDUSDT', 'LEVERUSDT', 'LOOMУСDT',
-            'LSKUSDT', 'LTOUSDT', 'MASKUSDT', 'MCOUSDT', 'MDXUSDT', 'MITHUSDT', 'MLNUSDT', 'MOBUSDT', 'MODAUSDT', 'NAVUSDT',
-            'NRMUSDT', 'NXSUSDT', 'OMGUSDT', 'ONGUSDT', 'OOKIUSDT', 'ORSUSDT', 'OSMOUSDT', 'OXTUSDT', 'PAXGUSDT', 'PERLUSDT',
-            'PROMUSDT', 'PSGUSDT', 'PNTUSDT', 'POLSUSDT', 'POLYUSDT', 'PORSUSDT', 'QIUSDT', 'QTRUMUSDT', 'QUICKUSDT', 'RADUSDT',
-            'RAIUSDT', 'RAREUSDT', 'RAYUSDT', 'REEFUSDT', 'RENUSDT', 'REPUSDT', 'RIFUSDT', 'SCRTUSDT', 'SKLUSDT', 'SNXUSDT',
-            'SRMUSDT', 'STPTUSDT', 'STXUSDT', 'SUNUSDT', 'SYSUSDT', 'TCTUSDT', 'TFUELUSDT', 'TRBUSDT', 'TRYUSDT', 'UMAUSDT',
-            'UPUSDT', 'UTKUSDT', 'VIAUSDT', 'VIBUSDT', 'VTHOUSDT', 'WANУСDT', 'WINGUSDT', 'WNXMUSDT', 'WRXUSDT', 'WTCUSDT',
-            'XTZUSDT', 'XVGUSDT', 'YFIIUSDT', 'YGGUSDT', 'ZRXUSDT', 'DOGSUSDT', 'TONUSDT', 'CATUSDT', 'POPCATUSDT', 'BCHUSDT',
-            'BSVUSDT', 'AMBUSDT', 'APPCUSDT', 'ARNUSDT', 'ARPAUSDT', 'ASSTRUSDT', 'ASTRUSDT', 'ATAUSDT', 'AUDUSDT', 'BALUSDT',
-            'BCDUSDT', 'BELUSDT', 'BETAUSDT', 'BIFIUSDT', 'BLZUSDT', 'BNTUSDT', 'BNXUSDT', 'BRDUSDT', 'BSWUSDT', 'BTSUSDT',
-            'BTZUSDT', 'BURNUSDT', 'BZRXUSDT', 'CHRUSDT', 'CMTUSDT', 'COCOSUSDT', 'COMUSDT', 'COSUSDT', 'COTUSDT', 'COTIUSDT',
-            'CTCUSDT', 'CVCUSDT', 'CVPUSDT', 'DCRUSDT', 'DGBUSDT', 'DIABUSDT', 'DOCKUSDT', 'DUSKUSDT', 'DYDXUSDT', 'FORUSDT',
-            'FUELUSDT', 'GALAUSDT', 'GLMRUSDT', 'GLMUSDT', 'GRIMUSDT', 'GTOUSDT', 'HIVEUSDT', 'HNTUSDT', 'IDEXUSDT', 'KMDUSDT',
-            'LISUSDT', 'ZROUSDT', 'GUSDT', 'BANAUSDT', 'FURIUSDT', 'LISКUSDT', 'ZROUSDT', 'GUSDT', 'BANAUSDT', 'FURIUSDT'
-        ]
-
-    def get_comprehensive_coin_map(self):
-        """500+ coin için kapsamlı CoinGecko mapping"""
-        return {
-            # Top 100 Major Coins
-            'BTCUSDT': 'bitcoin', 'ETHUSDT': 'ethereum', 'BNBUSDT': 'binancecoin', 'XRPUSDT': 'ripple', 'ADAUSDT': 'cardano',
-            'DOGEUSDT': 'dogecoin', 'SOLUSDT': 'solana', 'MATICUSDT': 'matic-network', 'DOTUSDT': 'polkadot', 'LTCUSDT': 'litecoin',
-            'AVAXUSDT': 'avalanche-2', 'LINKUSDT': 'chainlink', 'ATOMUSDT': 'cosmos', 'UNIUSDT': 'uniswap', 'FILUSDT': 'filecoin',
-            'TRXUSDT': 'tron', 'ETCUSDT': 'ethereum-classic', 'XLMUSDT': 'stellar', 'VETUSDT': 'vechain', 'ICXUSDT': 'icon',
-            'ONTUSDT': 'ontology', 'NEOUSDT': 'neo', 'QTUMUSDT': 'qtum', 'ZILUSDT': 'zilliqa', 'BATUSDT': 'basic-attention-token',
-            'ZECUSDT': 'zcash', 'DASHUSDT': 'dash', 'ENJUSDT': 'enjincoin', 'MANAUSDT': 'decentraland', 'SANDUSDT': 'the-sandbox',
-            'AXSUSDT': 'axie-infinity', 'CHZUSDT': 'chiliz', 'FTMUSDT': 'fantom', 'NEARUSDT': 'near', 'AAVEUSDT': 'aave',
-            'COMPUSDT': 'compound-governance-token', 'MKRUSDT': 'maker', 'YFIUSDT': 'yearn-finance', 'SUSHIUSDT': 'sushi', 'CRVUSDT': 'curve-dao-token',
-            'ONEUSDT': 'harmony', 'HOTUSDT': 'holotoken', 'ALGOUSDT': 'algorand', 'KAVAUSDT': 'kava', 'BANDUSDT': 'band-protocol',
-            'RLCUSDT': 'iexec-rlc', 'NMRUSDT': 'numeraire', 'STORJUSDT': 'storj', 'KNCUSDT': 'kyber-network-crystal', 'CAKEUSDT': 'pancakeswap-token',
-            
-            # DeFi Tokens (50 coin)
-            '1INCHUSDT': '1inch', 'BAKEUSDT': 'bakerytoken', 'BURGERUSDT': 'burger-swap', 'XVSUSDT': 'venus', 'SXPUSDT': 'swipe',
-            'ALPACAUSDT': 'alpaca-finance', 'LEXUSDT': 'lexer-markets',
-            'CFXUSDT': 'conflux-token', 'TLMUSDT': 'alien-worlds', 'IDUSDT': 'space-id', 'DFUSDT': 'dforce-token', 'FIDAUSDT': 'bonfida',
-            'FRONTUSDT': 'frontier-token', 'MDTUSDT': 'measurable-data-token', 'STMXUSDT': 'stormx', 'DENTUSDT': 'dent', 'KEYUSDT': 'selfkey',
-            'HARDUSDT': 'hard-protocol', 'STRAXUSDT': 'stratis', 'UNFIUSDT': 'unifi-protocol-dao', 'ROSEUSDT': 'oasis-network', 'AVAUSDT': 'travala',
-            'XEMUSDT': 'nem', 'AUCTIONUSDT': 'bounce-token', 'TVKUSDT': 'terra-virtua-kolect', 'BADGERUSDT': 'badger-dao', 'FISUSDT': 'stafi',
-            'OMUSDT': 'mantra-dao', 'PONDUSDT': 'marlin', 'DEGOUSDT': 'dego-finance', 'ALICEUSDT': 'my-neighbor-alice', 'LINAUSDT': 'linear',
-            'PERPUSDT': 'perpetual-protocol', 'RAMPUSDT': 'ramp', 'SUPERUSDT': 'superfarm', 'EPSUSDT': 'ellipsis', 'AUTOUSDT': 'auto',
-            'TKOUSDT': 'tokocrypto', 'PUNDIXUSDT': 'pundi-x-2', 'BTCSTUSDT': 'btc-standard-hashrate-token', 'TRUUSDT': 'truefi', 'CKBUSDT': 'nervos-network',
-            'TWTUSDT': 'trust-wallet-token', 'FIROUSDT': 'firo', 'LITUSDT': 'litentry', 'SFPUSDT': 'safemoon', 'DODOUSDT': 'dodo',
-            'SLPUSDT': 'smooth-love-potion', 'FLOWUSDT': 'flow', 'IMXUSDT': 'immutable-x', 'GALUSDT': 'socios-com-fan-token', 'CITYUSDT': 'manchester-city-fan-token',
-            
-            # Layer 2 & Scaling (50 coin)
-            'OPUSDT': 'optimism', 'ARBUSDT': 'arbitrum', 'LDOUSDT': 'lido-dao', 'STGUSDT': 'stargate-finance', 'METISUSDT': 'metis-token',
-            'APESUSDT': 'apecoin', 'JASMYUSDT': 'jasmycoin', 'DARUSDT': 'mines-of-dalarnia', 'GMXUSDT': 'gmx', 'MAGICUSDT': 'magic',
-            'RDNTUSDT': 'radiant-capital', 'HFTUSDT': 'hashflow', 'PHBUSDT': 'phoenix-global', 'HOOKUSDT': 'hooked-protocol', 'JOBTUSDT': 'jobchain',
-            'ARKMUSDT': 'arkham', 'WLDUSDT': 'worldcoin-wld', 'PENDLEUSDT': 'pendle', 'CYBERUSDT': 'cyberconnect', 'MAVUSDT': 'maverick-protocol',
-            'BLURUSDT': 'blur', 'VANRYUSDT': 'vanar-chain', 'JTOUSDT': 'jito-governance-token', 'ACEUSDT': 'fusionist', 'NFPUSDT': 'nfprompt',
-            'AIUSDT': 'sleepless-ai', 'XAIUSDT': 'xai-games', 'MANTAUSDT': 'manta-network', 'ALTUSDT': 'altlayer', 'PYTHUSDT': 'pyth-network',
-            'RONINUSDT': 'ronin', 'DYMUSDT': 'dymension', 'PIXELUSDT': 'pixels', 'STRKSUSDT': 'starknet', 'PORTALUSDT': 'portal',
-            'PDAUSDT': 'playstation', 'AXLUSDT': 'axelar', 'WIFUSDT': 'dogwifcoin', 'ETHFIUSDT': 'ether-fi', 'ENAAUSDT': 'ethena',
-            'TNSRUSDT': 'tensor', 'SAGAUSDT': 'saga', 'TAOUSDT': 'bittensor', 'OMNIUSDT': 'omni-network', 'REZUSDT': 'renzo',
-            'BBUSDT': 'bouncecoin', 'NOTUSDT': 'notcoin', 'IOUSDT': 'io', 'ZKUSDT': 'zkasino', 'LISUSDT': 'liquid-staked-ethereum',
-            
-            # Meme & AI Coins (50 coin)
-            'SHIBUSDT': 'shiba-inu', 'FLOKIUSDT': 'floki', 'PEPEUSDT': 'pepe', '1000PEPEUSDT': 'pepe', 'BONKUSDT': 'bonk',
-            'RATSUSDT': 'ordinals', '1000SATSUSDT': '1000x', 'ORDIUSDT': 'ordinals', 'BOMEUSDT': 'book-of-meme', 'MEMEUSDT': 'memecoin',
-            'DOGUSDT': 'doge-killer', '1000BONKUSDT': 'bonk', 'WIFHATUSDT': 'dogwifcoin', 'POPUSDT': 'popcat', 'MYOUSDT': 'myobu',
-            'FETUSDT': 'fetch-ai', 'AGIXUSDT': 'singularitynet', 'OCEANUSDT': 'ocean-protocol', 'THETAUSDT': 'theta-token', 'GRTUSDT': 'the-graph',
-            'PHAUSDT': 'phala-network', 'CTXCUSDT': 'cortex', 'NUUSDT': 'nucypher', 'CTSIUSDT': 'cartesi', 'DATAUSDT': 'streamr',
-            'QNTUSDT': 'quant-network', 'VITEUSDT': 'vite', 'ARDRUSDT': 'ardr', 'NULSUSDT': 'nuls', 'POWRUSDT': 'power-ledger',
-            'HBARUSDT': 'hedera-hashgraph', 'KSMUSDT': 'kusama', 'RUNEUSDT': 'thorchain', 'LUNAUSDT': 'terra-luna-2', 'WAVESUSDT': 'waves',
-            'EGLDUSDT': 'elrond-erd-2', 'IOTAUSDT': 'iota', 'SCUSDT': 'siacoin', 'ZENUSDT': 'horizen', 'FTTUSDT': 'ftx-token',
-            'CROUSDT': 'cronos', 'KCSUSDT': 'kucoin-shares', 'HTUSDT': 'huobi-token', 'BTTUSDT': 'bittorrent', 'WINUSDT': 'wink',
-            'WBTCUSDT': 'wrapped-bitcoin', 'STETHUSDT': 'staked-ether', 'FDUSDUSDT': 'first-digital-usd', 'TUSDUSDT': 'true-usd', 'USTCUSDT': 'terrausd',
-            
-            # Gaming & NFT (50 coin)  
-            'LRCUSDT': 'loopring', 'REQUSDT': 'request-network', 'AMPUSDT': 'amp-token', 'AUDIOUSDT': 'audius', 'ALPINUSDT': 'alpine-f1-team-fan-token',
-            'ASRUSDT': 'as-roma-fan-token', 'ATMUSDT': 'atletico-madrid', 'BARUSDT': 'fc-barcelona-fan-token', 'PSGSUSDT': 'paris-saint-germain-fan-token', 'ACMUSDT': 'ac-milan-fan-token',
-            'JUVUSDT': 'juventus-fan-token', 'PORTOUSDT': 'fc-porto-fan-token', 'SANTOSUSDT': 'santos-fc-fan-token', 'OGNUSDT': 'origin-protocol', 'NKNUSDT': 'nkn',
-            'GTCUSDT': 'gitcoin', 'ADXUSDT': 'adex', 'CLVUSDT': 'clover-finance', 'MINAUSDT': 'mina-protocol', 'FARMUSDT': 'harvest-finance',
-            'WAXPUSDT': 'wax', 'GNOUSDT': 'gnosis', 'XECUSDT': 'ecash', 'ELFUSDT': 'aelf', 'INJUSDT': 'injective-protocol',
-            'IOSTUSDT': 'iostoken', 'IOTXUSDT': 'iotex', 'JSTUSDT': 'just', 'LEVERUSDT': 'lever', 'LSKUSDT': 'lisk',
-            'LTOUSDT': 'lto-network', 'MASKUSDT': 'mask-network', 'MDXUSDT': 'mdex', 'MITHUSDT': 'mithril', 'MLNUSDT': 'melon',
-            'MOBUSDT': 'mobilecoin', 'MODAUSDT': 'moda-dao', 'NAVUSDT': 'navcoin', 'NRMUSDT': 'numeraire', 'NXSUSDT': 'nexus',
-            'OMGUSDT': 'omisego', 'ONGUSDT': 'ontology-gas', 'OSMOUSDT': 'osmosis', 'OXTUSDT': 'orchid-protocol', 'PAXGUSDT': 'pax-gold',
-            'PERLUSDT': 'perlin', 'PROMUSDT': 'prometeus', 'PSGUSDT': 'paris-saint-germain-fan-token', 'PNTUSDT': 'pnetwork', 'POLSUSDT': 'polkastarter',
-            'POLYUSDT': 'polymath', 'PORSUSDT': 'portugal-national-team-fan-token', 'QIUSDT': 'benqi', 'QUICKUSDT': 'quickswap', 'RADUSDT': 'radworks',
-            'RAIUSDT': 'rai', 'RAREUSDT': 'superrare', 'RAYUSDT': 'raydium', 'REEFUSDT': 'reef', 'RENUSDT': 'republic-protocol',
-            
-            # Additional Popular (300+ coin)
-            'REPUSDT': 'augur', 'RIFUSDT': 'rif-token', 'SCRTUSDT': 'secret', 'SKLUSDT': 'skale', 'SNXUSDT': 'havven',
-            'SRMUSDT': 'serum', 'STPTUSDT': 'stpt', 'STXUSDT': 'blockstack', 'SUNUSDT': 'sun-token', 'SYSUSDT': 'syscoin',
-            'TCTUSDT': 'tokenclub', 'TFUELUSDT': 'theta-fuel', 'TRBUSDT': 'tellor', 'TRYUSDT': 'trycrypto', 'UMAUSDT': 'uma',
-            'UPUSDT': 'uptoken', 'UTKUSDT': 'utrust', 'VIAUSDT': 'viacoin', 'VIBUSDT': 'viberate', 'VTHOUSDT': 'vethor-token',
-            'WINGUSDT': 'wing-finance', 'WRXUSDT': 'wazirx', 'WTCUSDT': 'waltonchain', 'XTZUSDT': 'tezos', 'XVGUSDT': 'verge',
-            'YFIIUSDT': 'yearn-finance-ii', 'YGGUSDT': 'yield-guild-games', 'ZRXUSDT': '0x', 'DOGSUSDT': 'dogecoin', 'TONUSDT': 'toncoin',
-            'CATUSDT': 'catcoin', 'POPCATUSDT': 'popcat', 'BCHUSDT': 'bitcoin-cash', 'BSVUSDT': 'bitcoin-sv', 'AMBUSDT': 'ambrosus',
-            'APPCUSDT': 'appcoins', 'ARNUSDT': 'aragon', 'ARPAUSDT': 'arpa', 'ASTRUSDT': 'astrafer', 'ATAUSDT': 'automata',
-            'AUDUSDT': 'audius', 'BALUSDT': 'balancer', 'BCDUSDT': 'bitcoin-diamond', 'BELUSDT': 'bella-protocol', 'BETAUSDT': 'beta-finance',
-            'BIFIUSDT': 'beefy-finance', 'BLZUSDT': 'bluzelle', 'BNTUSDT': 'bancor', 'BNXUSDT': 'binaryx', 'BRDUSDT': 'bread',
-            'BSWUSDT': 'biswap', 'BTSUSDT': 'bitshares', 'BTZUSDT': 'btcz', 'BURNUSDT': 'burncoin', 'BZRXUSDT': 'bzx-protocol',
-            'CHRUSDT': 'chromaway', 'CMTUSDT': 'cybermiles', 'COCOSUSDT': 'cocos-bcx', 'COMUSDT': 'communitynode', 'COSUSDT': 'contentos',
-            'COTUSDT': 'cosmo-coin', 'COTIUSDT': 'coti', 'CTCUSDT': 'creditcoin', 'CVCUSDT': 'civic', 'CVPUSDT': 'concentrated-voting-power',
-            'DCRUSDT': 'decred', 'DGBUSDT': 'digibyte', 'DIABUSDT': 'diabcoin', 'DOCKUSDT': 'dock', 'DUSKUSDT': 'dusk-network',
-            'DYDXUSDT': 'dydx', 'FORUSDT': 'for-protocol', 'FUELUSDT': 'etherparty', 'GALAUSDT': 'gala', 'GLMRUSDT': 'golem',
-            'GLMUSDT': 'glm', 'GRIMUSDT': 'grimacecoin', 'GTOUSDT': 'gifto', 'HIVEUSDT': 'hive', 'HNTUSDT': 'helium',
-            'IDEXUSDT': 'aurora-dao', 'KMDUSDT': 'komodo', 'LISUSDT': 'liquid-staked-ethereum', 'ZROUSDT': 'zero', 'GUSDT': 'gods-unchained',
-            'BANAUSDT': 'banana', 'FURIUSDT': 'furucombo'
-        }
-
-    def get_candle_data_fast(self, symbol, timeframe):
-        """Binance API kullan - rate limit yok"""
+        
+    def get_btc_trend_consistency(self):
+        """BTC trend tutarlılığını hesapla - TAM ORİJİNAL algoritma"""
         try:
-            # Cache kontrolü
-            cache_key = f"{symbol}_{timeframe}"
-            if hasattr(self, '_price_cache') and cache_key in self._price_cache:
-                return self._price_cache[cache_key]
+            # Son 30 dakika 1m verisi çek (orijinal gibi)
+            minutes = 30
+            url = f"{self.binance_api}/klines"
+            params = {
+                'symbol': 'BTCUSDT',
+                'interval': '1m',
+                'limit': minutes
+            }
             
-            if not hasattr(self, '_price_cache'):
-                self._price_cache = {}
+            response = requests.get(url, params=params, timeout=10)
+            if response.status_code != 200:
+                return 50
+                
+            klines = response.json()
+            if not klines or len(klines) < minutes:
+                return 50
             
-            try:
-                # CryptoCompare API - coğrafi kısıt yok
-                crypto_symbol = symbol.replace('USDT', '')  # BTCUSDT -> BTC
-                url = f"https://min-api.cryptocompare.com/data/price"
-                params = {'fsym': crypto_symbol, 'tsyms': 'USD'}
+            # Her dakika için trend yönünü belirle (orijinal algoritma)
+            trends = []
+            for i in range(len(klines) - 7):
+                recent_closes = [float(klines[j][4]) for j in range(i, i + 7)]
+                ma_7 = sum(recent_closes) / 7
+                current_close = float(klines[i + 6][4])
                 
-                response = requests.get(url, params=params, timeout=5)
-                
-                if response.status_code == 200:
-                    data = response.json()
-                    if 'USD' in data and data['USD'] > 0:
-                        price = float(data['USD'])
-                        
-                        # Gerçek fiyat bazlı veri serisi
-                        prices = []
-                        for i in range(50):
-                            variation = (hash(f"{symbol}_{i}") % 200 - 100) / 10000
-                            prices.append(price * (1 + variation))
-                        
-                        # Cache'le tüm timeframeler için
-                        for tf in ['1m', '5m', '30m', '1h']:
-                            self._price_cache[f"{symbol}_{tf}"] = prices
-                        
-                        return prices
-                    else:
-                        # Coin CryptoCompare'de yok
-                        return None
+                if current_close > ma_7:
+                    trends.append('BULL')
                 else:
-                    return None
-                
-            except Exception as e:
-                return None
+                    trends.append('BEAR')
             
-        except Exception as e:
-            return None
-
-    def calculate_comprehensive_analysis(self, prices, symbol):
-        """14 kriter analizi - optimize edilmiş"""
-        if not prices or len(prices) < 50:
-            return None
+            if not trends:
+                return 50
             
-        try:
-            closes = np.array(prices[-50:])
-            analysis = {}
+            bull_count = trends.count('BULL')
+            bear_count = trends.count('BEAR')
+            total_count = len(trends)
             
-            # 1-3. MA Sıralaması ve trend
-            ma5 = np.mean(closes[-5:])
-            ma10 = np.mean(closes[-10:])
-            ma20 = np.mean(closes[-20:])
-            ma50 = np.mean(closes[-50:])
+            # En baskın trendin oranı (orijinal gibi)
+            trend_ratio = max(bull_count, bear_count) / total_count
             
-            mas = [("5", ma5), ("10", ma10), ("20", ma20), ("50", ma50)]
-            mas.sort(key=lambda x: x[1], reverse=True)
-            analysis['ma_order'] = ">".join([x[0] for x in mas])
+            return round(trend_ratio * 100, 0)
             
-            # 4-6. RSI ve MACD
-            rsi = self.calculate_rsi_fast(closes)
-            analysis['rsi_value'] = round(rsi, 1)
-            if rsi < 30:
-                analysis['rsi_zone'] = 'oversold'
-            elif rsi > 70:
-                analysis['rsi_zone'] = 'overbought'  
-            else:
-                analysis['rsi_zone'] = 'neutral'
-                
-            # MACD basit
-            ema12 = closes[-1] * 0.5 + closes[-12:].mean() * 0.5
-            ema26 = closes[-1] * 0.3 + closes[-26:].mean() * 0.7
-            analysis['macd_trend'] = 'bullish' if ema12 > ema26 else 'bearish'
-            
-            # 7-10. Bollinger, Volume, Volatilite, Support/Resistance
-            bb_middle = np.mean(closes[-20:])
-            bb_std = np.std(closes[-20:])
-            bb_upper = bb_middle + (bb_std * 2)
-            bb_lower = bb_middle - (bb_std * 2)
-            
-            if closes[-1] > bb_upper:
-                analysis['bollinger_position'] = 'above_upper'
-            elif closes[-1] < bb_lower:
-                analysis['bollinger_position'] = 'below_lower'
-            else:
-                analysis['bollinger_position'] = 'middle'
-                
-            analysis['volume_trend'] = 'increasing'  # Simüle
-            analysis['volatility_index'] = round(np.std(closes[-20:]) / np.mean(closes[-20:]) * 100, 2)
-            
-            # 11-14. Diğer kriterler
-            price_change_24h = (closes[-1] - closes[-24]) / closes[-24] * 100 if len(closes) >= 24 else 0
-            analysis['price_24h_change'] = round(price_change_24h, 2)
-            analysis['price_24h_significant'] = abs(price_change_24h) > 5
-            
-            analysis['btc_correlation'] = 0.6  # Simüle
-            analysis['market_sentiment'] = 'bullish' if closes[-1] > closes[-10] else 'bearish'
-            analysis['order_book_pressure'] = 0.1  # Simüle
-            analysis['funding_rate'] = 0.001  # Simüle
-            analysis['support_resistance'] = 'middle_range'
-            
-            return analysis
-            
-        except Exception as e:
-            return None
-
-    def calculate_rsi_fast(self, prices, period=14):
-        """Hızlı RSI hesaplama"""
-        try:
-            deltas = np.diff(prices)
-            gains = np.where(deltas > 0, deltas, 0)
-            losses = np.where(deltas < 0, -deltas, 0)
-            avg_gain = np.mean(gains[-period:])
-            avg_loss = np.mean(losses[-period:])
-            if avg_loss == 0:
-                return 100
-            rs = avg_gain / avg_loss
-            return 100 - (100 / (1 + rs))
         except:
             return 50
 
-    def analyze_multi_timeframe_fast(self, symbol):
-        """Hızlı multi-timeframe analiz"""
-        timeframes = ['1m', '5m', '30m', '1h']
-        results = {}
-        
-        for tf in timeframes:
-            try:
-                prices = self.get_candle_data_fast(symbol, tf)
-                if prices:
-                    analysis = self.calculate_comprehensive_analysis(prices, symbol)
-                    results[tf] = analysis
+    def calculate_ma(self, prices, period):
+        """Moving Average hesapla"""
+        try:
+            if len(prices) < period:
+                return None
+            return sum(prices[-period:]) / period
+        except:
+            return None
+
+    def get_market_regime(self):
+        """Market rejimini belirle - orijinal algoritma"""
+        try:
+            # BTC 15m verisi çek (orijinal gibi)
+            url = f"{self.binance_api}/klines"
+            params = {
+                'symbol': 'BTCUSDT',
+                'interval': '15m',
+                'limit': 100
+            }
+            
+            response = requests.get(url, params=params, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                closes = [float(k[4]) for k in data]
+                
+                # MA'ları hesapla (orijinal algoritma)
+                ma_7 = self.calculate_ma(closes, 7)
+                ma_25 = self.calculate_ma(closes, 25) 
+                ma_99 = self.calculate_ma(closes, 99)
+                
+                if None in [ma_7, ma_25, ma_99]:
+                    return "BEAR TREND (BTC MA99>MA25>MA7 - Düşüş trendi)"
+                
+                # MA sıralaması belirle (orijinal gibi)
+                if ma_7 > ma_25 > ma_99:
+                    return "BULL TREND (BTC MA7>MA25>MA99 - Yükseliş trendi)"
+                elif ma_99 > ma_25 > ma_7:
+                    return "BEAR TREND (BTC MA99>MA25>MA7 - Düşüş trendi)"
                 else:
-                    results[tf] = None
-            except:
-                results[tf] = None
-                
-        return results
-
-    def check_position_match_fast(self, current_analysis, position_data):
-        """Hızlı pozisyon eşleşme kontrolü"""
-        if not current_analysis or not position_data:
-            return 0
+                    return "RANGE MARKET (BTC yatay hareket - Trend belirsiz)"
             
-        total_matches = 0
-        total_checks = 0
-        
-        criteria = ['ma_order', 'rsi_zone', 'macd_trend', 'bollinger_position', 
-                   'volume_trend', 'market_sentiment']
-        
-        for tf in ['1m', '5m', '30m', '1h']:
-            if tf not in current_analysis or not current_analysis[tf]:
-                continue
-            if tf not in position_data:
-                continue
-                
-            current = current_analysis[tf]
-            saved = position_data[tf]
-            
-            for criterion in criteria:
-                if criterion in current and criterion in saved:
-                    total_checks += 1
-                    if str(current[criterion]) == str(saved[criterion]):
-                        total_matches += 1
-        
-        return (total_matches / total_checks * 100) if total_checks > 0 else 0
+            return "BEAR TREND (BTC MA99>MA25>MA7 - Düşüş trendi)"
+        except:
+            return "BEAR TREND (BTC MA99>MA25>MA7 - Düşüş trendi)"
 
-    def run_analysis(self):
-        """Ana analiz - optimize edilmiş"""
-        print("🚀 Gelişmiş Trading Analizi Başlıyor...")
-        print(f"📊 {len(self.positions_data)} pozisyon yüklendi")
+    def get_multi_tf_info(self):
+        """Multi-TF bilgisi - orijinal algoritma"""
+        try:
+            # Orijinal timeframe'ler: 5m, 30m, 1h
+            timeframes = ['5m', '30m', '1h']
+            bull_confirmations = 0
+            
+            for tf in timeframes:
+                url = f"{self.binance_api}/klines"
+                params = {
+                    'symbol': 'BTCUSDT',
+                    'interval': tf,
+                    'limit': 100
+                }
+                
+                response = requests.get(url, params=params, timeout=10)
+                if response.status_code == 200:
+                    data = response.json()
+                    if len(data) < 99:
+                        continue
+                        
+                    closes = [float(k[4]) for k in data]
+                    
+                    # MA'ları hesapla
+                    ma_7 = self.calculate_ma(closes, 7)
+                    ma_25 = self.calculate_ma(closes, 25)
+                    ma_99 = self.calculate_ma(closes, 99)
+                    
+                    if None in [ma_7, ma_25, ma_99]:
+                        continue
+                    
+                    # BULLISH trend kontrol (TAM ORİJİNAL)
+                    current_price = closes[-1]
+                    if ma_7 > ma_25 > ma_99 and current_price > ma_7:
+                        bull_confirmations += 1
+            
+            # Orijinal formata uygun sonuç
+            if bull_confirmations == 3:
+                return f"{bull_confirmations}/3 (Mükemmel)"
+            elif bull_confirmations >= 2:
+                return f"{bull_confirmations}/3 (İyi)"
+            else:
+                return f"{bull_confirmations}/3 (Riskli)"
+            
+        except:
+            return "0/3 (Riskli)"
+
+    def calculate_rsi(self, prices, period=14):
+        """RSI hesaplama"""
+        try:
+            if len(prices) < period + 1:
+                return 50
+                
+            deltas = []
+            for i in range(1, len(prices)):
+                deltas.append(prices[i] - prices[i-1])
+            
+            gains = [d if d > 0 else 0 for d in deltas]
+            losses = [-d if d < 0 else 0 for d in deltas]
+            
+            avg_gain = sum(gains[-period:]) / period
+            avg_loss = sum(losses[-period:]) / period
+            
+            if avg_loss == 0:
+                return 100
+                
+            rs = avg_gain / avg_loss
+            rsi = 100 - (100 / (1 + rs))
+            return rsi
+            
+        except:
+            return 50
+
+    def display_info(self):
+        """Market bilgilerini göster ve Telegram'a gönder"""
+        # Market rejimi
+        regime = self.get_market_regime()
+        print(f"MARKET REJIMİ: ✅ Rejim: {regime}")
         
-        coins = self.get_500_coins()
-        max_coins = 200 if os.getenv('GITHUB_ACTIONS') else len(coins)
-        print(f"🔍 {max_coins} coin taranacak... ({'GitHub Actions' if os.getenv('GITHUB_ACTIONS') else 'Lokal'})")
+        # Diğer bilgiler
+        print("DİĞER BİLGİLER:")
         
-        if self.positions_data:
-            print("📋 Kriterler: 4 timeframe'den 3'ü (%75+), pozisyon eşleşme %85+")
+        # BTC Trend tutarlılığı
+        btc_consistency = self.get_btc_trend_consistency()
+        
+        # Tutarlılık durumuna göre emoji belirle
+        if btc_consistency >= 75:
+            btc_emoji = "✅"
+            btc_status = "İyi"
         else:
-            print("📋 Kriterler: 4 timeframe başarı (%100), 14 teknik kriter")
+            btc_emoji = "⚠️"
+            btc_status = "Karışık"
         
-        signals = []
-        scanned = 0
+        print(f"{btc_emoji} BTC Trend Tutarlılığı: {btc_consistency}% ({btc_status})")
         
-        # Tek tek işlem - donma önleme
-        # CryptoCompare API - tam kapasiteye test
-        max_coins = len(coins)  # Her durumda 380 coin
-        coins_to_scan = coins[:max_coins]
+        # Multi-TF
+        multi_tf_result = self.get_multi_tf_info()
         
-        for i, symbol in enumerate(coins_to_scan):
-            try:
-                scanned += 1
-                if scanned % 50 == 0 or scanned <= 10:
-                    print(f"⏳ {scanned}/{max_coins} - {symbol}")
-                
-                # Multi-timeframe analiz
-                current_analysis = self.analyze_multi_timeframe_fast(symbol)
-                
-                # Timeframe başarı kontrolü
-                valid_timeframes = sum(1 for tf in current_analysis.values() if tf is not None)
-                timeframe_success_rate = (valid_timeframes / 4) * 100
-                
-                if valid_timeframes < 3:  # En az 3 timeframe gerekli
-                    continue
-                
-                signal_found = False
-                
-                if self.positions_data:
-                    # Pozisyon eşleşme modu - TEST KRİTERLERİ
-                    best_match = 0
-                    for position in self.positions_data:
-                        if 'data' not in position:
-                            continue
-                        match_rate = self.check_position_match_fast(current_analysis, position['data'])
-                        best_match = max(best_match, match_rate)
-                    
-                        
-                    if timeframe_success_rate >= 75 and best_match >= 85:  # Normal kriterler
-                        # En iyi eşleşen pozisyonu bul
-                        best_position = None
-                        for position in self.positions_data:
-                            if 'data' not in position:
-                                continue
-                            match_rate = self.check_position_match_fast(current_analysis, position['data'])
-                            if match_rate == best_match:
-                                best_position = position
-                                break
-                        
-                        signal_found = True
-                        signal_data = {
-                            'symbol': symbol,
-                            'timeframe_rate': timeframe_success_rate,
-                            'match_rate': best_match,
-                            'matched_position': best_position,
-                            'type': 'POSITION_MATCH'
-                        }
-                else:
-                    # Basit analiz modu - TEST KRİTERLERİ  
-                    if timeframe_success_rate >= 100:  # Tüm timeframeler başarılı
-                        signal_found = True
-                        signal_data = {
-                            'symbol': symbol,
-                            'timeframe_rate': timeframe_success_rate,
-                            'type': 'TECHNICAL_SIGNAL'
-                        }
-                
-                if signal_found:
-                    signals.append(signal_data)
-                    print(f"🎯 SİGNAL: {symbol}")
-                    
-                    # Hemen mesaj gönder
-                    timestamp = datetime.now().strftime('%H:%M:%S')
-                    if self.positions_data:
-                        if 'matched_position' in signal_data and signal_data['matched_position']:
-                            pos = signal_data['matched_position']
-                            
-                            # Pozisyon bilgilerini çıkar
-                            pos_symbol = pos.get('symbol', 'Bilinmiyor')
-                            pos_date = pos.get('timestamp', 'Bilinmiyor')
-                            
-                            # result veya data içinden side ve price bilgisi çıkar
-                            pos_result = pos.get('result', {})
-                            pos_data_info = pos.get('data', {})
-                            
-                            
-                            # Field çıkarma - result string olarak side içeriyor
-                            pos_side = pos_result if isinstance(pos_result, str) else 'Bilinmiyor'
-                            pos_price = 'Bilinmiyor'
-                            
-                            # data içinden fiyat bilgisi ara (timeframe verilerinden)
-                            if isinstance(pos_data_info, dict):
-                                # İlk timeframe'den fiyat bilgisi al
-                                for timeframe, tf_data in pos_data_info.items():
-                                    if isinstance(tf_data, dict):
-                                        pos_price = tf_data.get('price', tf_data.get('close', tf_data.get('entry_price', pos_price)))
-                                        if pos_price != 'Bilinmiyor':
-                                            break
-                            
-                            # Side için emoji
-                            side_emoji = "🟢 LONG" if pos_side.upper() == 'LONG' else "🔴 SHORT" if pos_side.upper() == 'SHORT' else f"⚪ {pos_side}"
-                            
-                            message = f"""🚀 <b>YENİ SİGNAL</b>
-
-💰 <b>Coin:</b> {signal_data['symbol']}
-⏰ <b>Zaman:</b> {timestamp}
-📊 <b>Timeframe:</b> %{signal_data['timeframe_rate']:.0f}
-🎯 <b>Eşleşme:</b> %{signal_data['match_rate']:.0f}
-
-📈 <b>Eşleşen Pozisyon:</b>
-   🪙 Coin: {pos_symbol}
-   {side_emoji}
-   💵 Fiyat: {pos_price}
-   📅 Tarih: {pos_date}
-
-🔍 <b>Taranan:</b> {scanned}/{max_coins}
-🤖 <i>Gelişmiş analiz - 14 kriter</i>"""
-                        else:
-                            message = f"""🚀 <b>YENİ SİGNAL</b>
-
-💰 <b>Coin:</b> {signal_data['symbol']}
-⏰ <b>Zaman:</b> {timestamp}
-📊 <b>Timeframe:</b> %{signal_data['timeframe_rate']:.0f}
-🎯 <b>Eşleşme:</b> %{signal_data['match_rate']:.0f}
-🔍 <b>Taranan:</b> {scanned}/{max_coins}
-
-🤖 <i>Gelişmiş analiz - 14 kriter</i>"""
-                    else:
-                        message = f"""🚀 <b>YENİ SİGNAL</b>
-
-💰 <b>Coin:</b> {signal_data['symbol']}  
-⏰ <b>Zaman:</b> {timestamp}
-📊 <b>Timeframe:</b> %{signal_data['timeframe_rate']:.0f}
-🔍 <b>Taranan:</b> {scanned}/{len(coins)}
-
-🤖 <i>Teknik analiz - 14 kriter</i>"""
-                    
-                    self.send_telegram_message(message)
-                    
-            except Exception as e:
-                print(f"   ⚠️ {symbol} - Hata: {e}")
-                continue
+        # Multi-TF durumuna göre emoji belirle
+        if "Mükemmel" in multi_tf_result:
+            multi_emoji = "✅"
+        elif "İyi" in multi_tf_result:
+            multi_emoji = "⚠️"
+        else:
+            multi_emoji = "❌"
+            
+        print(f"{multi_emoji} Multi-TF (30dk odak): {multi_tf_result}")
         
-        print(f"✅ Analiz tamamlandı: {scanned} coin tarandı, {len(signals)} sinyal bulundu")
+        # Telegram mesajı oluştur
+        telegram_message = f"""<b>📊 MARKET DURUMU</b>
+
+<b>MARKET REJIMİ:</b> ✅ Rejim: {regime}
+
+<b>DİĞER BİLGİLER:</b>
+{btc_emoji} <b>BTC Trend Tutarlılığı:</b> {btc_consistency}% ({btc_status})
+{multi_emoji} <b>Multi-TF (30dk odak):</b> {multi_tf_result}
+
+⏰ <b>Zaman:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+🤖 <i>Otomatik market analizi</i>"""
+        
+        # Telegram'a gönder
+        self.send_telegram_message(telegram_message)
 
 if __name__ == "__main__":
-    bot = AdvancedTradingBot()
-    bot.run_analysis()
+    market = MarketInfo()
+    market.display_info()
