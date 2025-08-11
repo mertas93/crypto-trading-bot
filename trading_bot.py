@@ -413,9 +413,9 @@ class AdvancedTradingBot:
         scanned = 0
         
         # Tek tek işlem - donma önleme
-        # Test: İlk 50 coin
-        coins_to_scan = coins[:50]
-        max_coins = 50
+        # Debug: İlk 3 coin
+        coins_to_scan = coins[:3]
+        max_coins = 3
         
         for i, symbol in enumerate(coins_to_scan):
             try:
@@ -444,6 +444,7 @@ class AdvancedTradingBot:
                         match_rate = self.check_position_match_fast(current_analysis, position['data'])
                         best_match = max(best_match, match_rate)
                     
+                    print(f"    📊 {symbol}: TF=%{timeframe_success_rate:.0f}, Match=%{best_match:.1f}")
                     
                     if timeframe_success_rate >= 50 and best_match >= 30:  # Test kriterleri
                         signal_found = True
