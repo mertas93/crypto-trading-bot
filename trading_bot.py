@@ -197,11 +197,13 @@ class AdvancedTradingBot:
             coin_map = self.get_comprehensive_coin_map()
             
             if symbol not in coin_map:
+                print(f"   ❌ {symbol} - CoinGecko mapping yok")
                 # Mapping yoksa basit simülasyon
                 base_price = hash(symbol) % 10000 + 1000
                 return [base_price + (i % 100) for i in range(50)]
                 
             coin_id = coin_map[symbol]
+            print(f"   📡 {symbol} -> {coin_id} API çağrısı...")
             
             # CoinGecko API çağrısı - gerçek tarama
             try:
@@ -214,12 +216,15 @@ class AdvancedTradingBot:
                     data = response.json()
                     if coin_id in data and 'usd' in data[coin_id]:
                         price = data[coin_id]['usd']
+                        print(f"   ✅ {symbol} - Gerçek fiyat: ${price}")
                         # Gerçek fiyat bazlı simülasyon
                         prices = []
                         for i in range(50):
                             variation = (hash(f"{symbol}_{i}") % 200 - 100) / 10000  # -1% to +1%
                             prices.append(price * (1 + variation))
                         return prices
+                else:
+                    print(f"   ❌ {symbol} - API hatası: {response.status_code}")
                 
                 # API başarısızsa simülasyon
                 base_price = hash(symbol) % 10000 + 1000
@@ -229,8 +234,9 @@ class AdvancedTradingBot:
                     prices.append(base_price * (1 + variation))
                 return prices
                 
-            except:
+            except Exception as e:
                 # Hata durumunda simülasyon
+                print(f"   ⚠️ {symbol} - API exception: {e}")
                 base_price = hash(symbol) % 10000 + 1000
                 prices = []
                 for i in range(50):
@@ -376,7 +382,8 @@ class AdvancedTradingBot:
         print(f"📊 {len(self.positions_data)} pozisyon yüklendi")
         
         coins = self.get_500_coins()
-        print(f"🔍 {len(coins)} coin taranacak...")
+        max_coins = 200 if os.getenv('GITHUB_ACTIONS') else len(coins)
+        print(f"🔍 {max_coins} coin taranacak... ({'GitHub Actions' if os.getenv('GITHUB_ACTIONS') else 'Lokal'})")
         
         if self.positions_data:
             print("📋 Kriterler: 4 timeframe'den 3'ü (%75+), pozisyon eşleşme %85+")
@@ -387,11 +394,15 @@ class AdvancedTradingBot:
         scanned = 0
         
         # Tek tek işlem - donma önleme
-        for i, symbol in enumerate(coins[:50]):  # Test: İlk 50 coin
+        # Debug: Sadece 3 coin
+        coins_to_scan = coins[:3]
+        max_coins = 3
+        
+        for i, symbol in enumerate(coins_to_scan):
             try:
                 scanned += 1
                 if scanned % 50 == 0 or scanned <= 10:
-                    print(f"⏳ {scanned}/{len(coins)} - {symbol}")
+                    print(f"⏳ {scanned}/{max_coins} - {symbol}")
                 
                 # Multi-timeframe analiz
                 current_analysis = self.analyze_multi_timeframe_fast(symbol)
