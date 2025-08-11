@@ -413,7 +413,7 @@ class AdvancedTradingBot:
         scanned = 0
         
         # Tek tek işlem - donma önleme
-        # Debug: İlk 3 coin
+        # Test: İlk 3 coin
         coins_to_scan = coins[:3]
         max_coins = 3
         
@@ -444,19 +444,29 @@ class AdvancedTradingBot:
                         match_rate = self.check_position_match_fast(current_analysis, position['data'])
                         best_match = max(best_match, match_rate)
                     
-                    print(f"    📊 {symbol}: TF=%{timeframe_success_rate:.0f}, Match=%{best_match:.1f}")
-                    
-                    if timeframe_success_rate >= 50 and best_match >= 0:  # Test: %0 eşleşme bile kabul
+                        
+                    if timeframe_success_rate >= 50 and best_match >= 0:  # Test kriterleri
+                        # En iyi eşleşen pozisyonu bul
+                        best_position = None
+                        for position in self.positions_data:
+                            if 'data' not in position:
+                                continue
+                            match_rate = self.check_position_match_fast(current_analysis, position['data'])
+                            if match_rate == best_match:
+                                best_position = position
+                                break
+                        
                         signal_found = True
                         signal_data = {
                             'symbol': symbol,
                             'timeframe_rate': timeframe_success_rate,
                             'match_rate': best_match,
+                            'matched_position': best_position,
                             'type': 'POSITION_MATCH'
                         }
                 else:
                     # Basit analiz modu - TEST KRİTERLERİ  
-                    if timeframe_success_rate >= 75:  # Test: %75+ başarı
+                    if timeframe_success_rate >= 100:  # Tüm timeframeler başarılı
                         signal_found = True
                         signal_data = {
                             'symbol': symbol,
@@ -471,13 +481,41 @@ class AdvancedTradingBot:
                     # Hemen mesaj gönder
                     timestamp = datetime.now().strftime('%H:%M:%S')
                     if self.positions_data:
-                        message = f"""🚀 <b>YENİ SİGNAL</b>
+                        if 'matched_position' in signal_data and signal_data['matched_position']:
+                            pos = signal_data['matched_position']
+                            
+                            # Pozisyon bilgilerini çıkar
+                            pos_symbol = pos.get('symbol', 'Bilinmiyor')
+                            pos_side = pos.get('side', 'Bilinmiyor')
+                            pos_date = pos.get('date', 'Bilinmiyor')
+                            pos_price = pos.get('price', 'Bilinmiyor')
+                            
+                            # Side için emoji
+                            side_emoji = "🟢 LONG" if pos_side.upper() == 'LONG' else "🔴 SHORT" if pos_side.upper() == 'SHORT' else f"⚪ {pos_side}"
+                            
+                            message = f"""🚀 <b>YENİ SİGNAL</b>
 
 💰 <b>Coin:</b> {signal_data['symbol']}
 ⏰ <b>Zaman:</b> {timestamp}
 📊 <b>Timeframe:</b> %{signal_data['timeframe_rate']:.0f}
 🎯 <b>Eşleşme:</b> %{signal_data['match_rate']:.0f}
-🔍 <b>Taranan:</b> {scanned}/{len(coins)}
+
+📈 <b>Eşleşen Pozisyon:</b>
+   🪙 Coin: {pos_symbol}
+   {side_emoji}
+   💵 Fiyat: {pos_price}
+   📅 Tarih: {pos_date}
+
+🔍 <b>Taranan:</b> {scanned}/{max_coins}
+🤖 <i>Gelişmiş analiz - 14 kriter</i>"""
+                        else:
+                            message = f"""🚀 <b>YENİ SİGNAL</b>
+
+💰 <b>Coin:</b> {signal_data['symbol']}
+⏰ <b>Zaman:</b> {timestamp}
+📊 <b>Timeframe:</b> %{signal_data['timeframe_rate']:.0f}
+🎯 <b>Eşleşme:</b> %{signal_data['match_rate']:.0f}
+🔍 <b>Taranan:</b> {scanned}/{max_coins}
 
 🤖 <i>Gelişmiş analiz - 14 kriter</i>"""
                     else:
