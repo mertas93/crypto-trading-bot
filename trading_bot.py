@@ -211,8 +211,7 @@ class AdvancedTradingBot:
             coin_id = coin_map[symbol]
             
             # Rate limiting için bekleme
-            time.sleep(0.3)  # Daha uzun bekleme
-            print(f"   📡 {symbol} -> CoinGecko API çağrısı...")
+            time.sleep(1.0)  # 1 saniye bekleme
             
             try:
                 url = f"https://api.coingecko.com/api/v3/simple/price"
@@ -224,7 +223,6 @@ class AdvancedTradingBot:
                     data = response.json()
                     if coin_id in data and 'usd' in data[coin_id]:
                         price = data[coin_id]['usd']
-                        print(f"   ✅ {symbol} - Gerçek fiyat: ${price:,.2f}")
                         
                         # Gerçek fiyat bazlı veri serisi
                         prices = []
@@ -394,8 +392,8 @@ class AdvancedTradingBot:
         scanned = 0
         
         # Tek tek işlem - donma önleme
-        # GitHub Actions için coin limit
-        max_coins = 200 if os.getenv('GITHUB_ACTIONS') else len(coins)
+        # GitHub Actions için conservative limit (rate limiting önleme)
+        max_coins = 50 if os.getenv('GITHUB_ACTIONS') else 100  # Daha az coin
         coins_to_scan = coins[:max_coins]
         
         for i, symbol in enumerate(coins_to_scan):
