@@ -212,7 +212,7 @@ class AdvancedTradingBot:
             coin_id = coin_map[symbol]
             
             # Rate limiting için bekleme
-            time.sleep(0.5)  # Her API çağrısı arası 500ms bekle
+            time.sleep(0.2)  # Her API çağrısı arası 200ms bekle
             
             try:
                 url = f"https://api.coingecko.com/api/v3/simple/price"
@@ -413,9 +413,9 @@ class AdvancedTradingBot:
         scanned = 0
         
         # Tek tek işlem - donma önleme
-        # Debug: Sadece 3 coin
-        coins_to_scan = coins[:3]
-        max_coins = 3
+        # GitHub Actions için coin limit
+        max_coins = 200 if os.getenv('GITHUB_ACTIONS') else len(coins)  
+        coins_to_scan = coins[:max_coins]
         
         for i, symbol in enumerate(coins_to_scan):
             try:
