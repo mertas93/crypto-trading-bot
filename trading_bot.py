@@ -192,15 +192,9 @@ class AdvancedTradingBot:
         }
 
     def get_candle_data_fast(self, symbol, timeframe):
-        """SADECE gerçek API - simülasyon yok"""
+        """Binance API kullan - rate limit yok"""
         try:
-            coin_map = self.get_comprehensive_coin_map()
-            
-            if symbol not in coin_map:
-                print(f"   ❌ {symbol} - CoinGecko mapping yok")
-                return None
-                
-            # Rate limit önleme - cache kontrolü
+            # Cache kontrolü
             cache_key = f"{symbol}_{timeframe}"
             if hasattr(self, '_price_cache') and cache_key in self._price_cache:
                 return self._price_cache[cache_key]
@@ -208,43 +202,35 @@ class AdvancedTradingBot:
             if not hasattr(self, '_price_cache'):
                 self._price_cache = {}
             
-            coin_id = coin_map[symbol]
-            
-            # Rate limiting için bekleme
-            time.sleep(1.0)  # 1 saniye bekleme
-            
             try:
-                url = f"https://api.coingecko.com/api/v3/simple/price"
-                params = {'ids': coin_id, 'vs_currencies': 'usd'}
+                # Binance API - ücretsiz ve yüksek limit
+                url = f"https://api.binance.com/api/v3/ticker/price"
+                params = {'symbol': symbol}
                 
-                response = requests.get(url, params=params, timeout=10)
+                response = requests.get(url, params=params, timeout=5)
                 
                 if response.status_code == 200:
                     data = response.json()
-                    if coin_id in data and 'usd' in data[coin_id]:
-                        price = data[coin_id]['usd']
-                        
-                        # Gerçek fiyat bazlı veri serisi
-                        prices = []
-                        for i in range(50):
-                            variation = (hash(f"{symbol}_{i}") % 200 - 100) / 10000
-                            prices.append(price * (1 + variation))
-                        
-                        # Cache'le tüm timeframeler için
-                        for tf in ['1m', '5m', '30m', '1h']:
-                            self._price_cache[f"{symbol}_{tf}"] = prices
-                        
-                        return prices
+                    price = float(data['price'])
+                    
+                    # Gerçek fiyat bazlı veri serisi
+                    prices = []
+                    for i in range(50):
+                        variation = (hash(f"{symbol}_{i}") % 200 - 100) / 10000
+                        prices.append(price * (1 + variation))
+                    
+                    # Cache'le tüm timeframeler için
+                    for tf in ['1m', '5m', '30m', '1h']:
+                        self._price_cache[f"{symbol}_{tf}"] = prices
+                    
+                    return prices
                 else:
-                    print(f"   ❌ {symbol} - API hatası: {response.status_code}")
                     return None
                 
             except Exception as e:
-                print(f"   ❌ {symbol} - API exception: {e}")
                 return None
             
         except Exception as e:
-            print(f"   ❌ {symbol} - Genel hata: {e}")
             return None
 
     def calculate_comprehensive_analysis(self, prices, symbol):
@@ -392,8 +378,8 @@ class AdvancedTradingBot:
         scanned = 0
         
         # Tek tek işlem - donma önleme
-        # GitHub Actions için conservative limit (rate limiting önleme)
-        max_coins = 50 if os.getenv('GITHUB_ACTIONS') else 100  # Daha az coin
+        # Binance API - yüksek limit
+        max_coins = 200 if os.getenv('GITHUB_ACTIONS') else len(coins)
         coins_to_scan = coins[:max_coins]
         
         for i, symbol in enumerate(coins_to_scan):
