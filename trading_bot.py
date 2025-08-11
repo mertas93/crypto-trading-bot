@@ -413,9 +413,9 @@ class AdvancedTradingBot:
         scanned = 0
         
         # Tek tek işlem - donma önleme
-        # Test: İlk 3 coin
-        coins_to_scan = coins[:3]
-        max_coins = 3
+        # GitHub Actions için coin limit
+        max_coins = 200 if os.getenv('GITHUB_ACTIONS') else len(coins)
+        coins_to_scan = coins[:max_coins]
         
         for i, symbol in enumerate(coins_to_scan):
             try:
@@ -445,7 +445,7 @@ class AdvancedTradingBot:
                         best_match = max(best_match, match_rate)
                     
                         
-                    if timeframe_success_rate >= 50 and best_match >= 0:  # Test kriterleri
+                    if timeframe_success_rate >= 75 and best_match >= 85:  # Normal kriterler
                         # En iyi eşleşen pozisyonu bul
                         best_position = None
                         for position in self.positions_data:
@@ -492,26 +492,19 @@ class AdvancedTradingBot:
                             pos_result = pos.get('result', {})
                             pos_data_info = pos.get('data', {})
                             
-                            # Debug: result ve data içeriğini göster
-                            print(f"    📈 Result type: {type(pos_result)} - {pos_result}")
-                            print(f"    📊 Data type: {type(pos_data_info)}")
-                            if isinstance(pos_data_info, dict) and pos_data_info:
-                                data_keys = list(pos_data_info.keys())[:5]
-                                print(f"    📊 Data keys (ilk 5): {data_keys}")
                             
-                            # Güvenli field çıkarma
-                            pos_side = 'Bilinmiyor'
+                            # Field çıkarma - result string olarak side içeriyor
+                            pos_side = pos_result if isinstance(pos_result, str) else 'Bilinmiyor'
                             pos_price = 'Bilinmiyor'
                             
-                            if isinstance(pos_result, dict):
-                                pos_side = pos_result.get('side', pos_result.get('direction', pos_side))
-                                pos_price = pos_result.get('price', pos_result.get('entry_price', pos_price))
-                            
+                            # data içinden fiyat bilgisi ara (timeframe verilerinden)
                             if isinstance(pos_data_info, dict):
-                                if pos_side == 'Bilinmiyor':
-                                    pos_side = pos_data_info.get('side', pos_data_info.get('direction', pos_side))
-                                if pos_price == 'Bilinmiyor':
-                                    pos_price = pos_data_info.get('price', pos_data_info.get('entry_price', pos_price))
+                                # İlk timeframe'den fiyat bilgisi al
+                                for timeframe, tf_data in pos_data_info.items():
+                                    if isinstance(tf_data, dict):
+                                        pos_price = tf_data.get('price', tf_data.get('close', tf_data.get('entry_price', pos_price)))
+                                        if pos_price != 'Bilinmiyor':
+                                            break
                             
                             # Side için emoji
                             side_emoji = "🟢 LONG" if pos_side.upper() == 'LONG' else "🔴 SHORT" if pos_side.upper() == 'SHORT' else f"⚪ {pos_side}"
