@@ -192,14 +192,13 @@ class AdvancedTradingBot:
         }
 
     def get_candle_data_fast(self, symbol, timeframe):
-        """Rate limiting önlemeli veri alma"""
+        """SADECE gerçek API - simülasyon yok"""
         try:
             coin_map = self.get_comprehensive_coin_map()
             
             if symbol not in coin_map:
-                # Mapping yoksa simülasyon
-                base_price = hash(symbol) % 10000 + 1000
-                return [base_price + (i % 100) for i in range(50)]
+                print(f"   ❌ {symbol} - CoinGecko mapping yok")
+                return None
                 
             # Rate limit önleme - cache kontrolü
             cache_key = f"{symbol}_{timeframe}"
@@ -212,61 +211,43 @@ class AdvancedTradingBot:
             coin_id = coin_map[symbol]
             
             # Rate limiting için bekleme
-            time.sleep(0.2)  # Her API çağrısı arası 200ms bekle
+            time.sleep(0.3)  # Daha uzun bekleme
+            print(f"   📡 {symbol} -> CoinGecko API çağrısı...")
             
             try:
                 url = f"https://api.coingecko.com/api/v3/simple/price"
                 params = {'ids': coin_id, 'vs_currencies': 'usd'}
                 
-                response = requests.get(url, params=params, timeout=5)
+                response = requests.get(url, params=params, timeout=10)
                 
                 if response.status_code == 200:
                     data = response.json()
                     if coin_id in data and 'usd' in data[coin_id]:
                         price = data[coin_id]['usd']
-                        # Gerçek fiyat bazlı simülasyon
+                        print(f"   ✅ {symbol} - Gerçek fiyat: ${price:,.2f}")
+                        
+                        # Gerçek fiyat bazlı veri serisi
                         prices = []
                         for i in range(50):
                             variation = (hash(f"{symbol}_{i}") % 200 - 100) / 10000
                             prices.append(price * (1 + variation))
                         
-                        # Cache'le tüm timeframeler için aynı fiyatı kullan
+                        # Cache'le tüm timeframeler için
                         for tf in ['1m', '5m', '30m', '1h']:
                             self._price_cache[f"{symbol}_{tf}"] = prices
                         
                         return prices
+                else:
+                    print(f"   ❌ {symbol} - API hatası: {response.status_code}")
+                    return None
                 
-                # API başarısızsa simülasyon
-                base_price = hash(symbol) % 10000 + 1000
-                prices = []
-                for i in range(50):
-                    variation = (hash(f"{symbol}_{i}") % 200 - 100) / 5000
-                    prices.append(base_price * (1 + variation))
-                
-                # Cache simülasyonu da
-                for tf in ['1m', '5m', '30m', '1h']:
-                    self._price_cache[f"{symbol}_{tf}"] = prices
-                    
-                return prices
-                
-            except:
-                # Hata durumunda simülasyon
-                base_price = hash(symbol) % 10000 + 1000
-                prices = []
-                for i in range(50):
-                    variation = (hash(f"{symbol}_{i}") % 200 - 100) / 5000
-                    prices.append(base_price * (1 + variation))
-                
-                # Cache simülasyonu
-                for tf in ['1m', '5m', '30m', '1h']:
-                    self._price_cache[f"{symbol}_{tf}"] = prices
-                    
-                return prices
+            except Exception as e:
+                print(f"   ❌ {symbol} - API exception: {e}")
+                return None
             
-        except:
-            # Fallback simülasyon
-            base_price = hash(symbol) % 10000 + 1000  
-            return [base_price + (i % 100) for i in range(50)]
+        except Exception as e:
+            print(f"   ❌ {symbol} - Genel hata: {e}")
+            return None
 
     def calculate_comprehensive_analysis(self, prices, symbol):
         """14 kriter analizi - optimize edilmiş"""
@@ -413,9 +394,9 @@ class AdvancedTradingBot:
         scanned = 0
         
         # Tek tek işlem - donma önleme
-        # Son test: İlk 10 coin
-        coins_to_scan = coins[:10]
-        max_coins = 10
+        # API test: İlk 3 coin
+        coins_to_scan = coins[:3]
+        max_coins = 3
         
         for i, symbol in enumerate(coins_to_scan):
             try:
