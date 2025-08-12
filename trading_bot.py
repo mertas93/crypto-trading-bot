@@ -129,11 +129,12 @@ class MarketInfo:
             return "BEAR TREND (BTC MA99>MA25>MA7 - Düşüş trendi)"
 
     def get_multi_tf_info(self):
-        """Multi-TF bilgisi - orijinal algoritma"""
+        """Multi-TF bilgisi - BULL ve BEAR analizi"""
         try:
-            # Orijinal timeframe'ler: 5m, 30m, 1h
+            # Timeframe'ler: 5m, 30m, 1h
             timeframes = ['5m', '30m', '1h']
             bull_confirmations = 0
+            bear_confirmations = 0
             
             for tf in timeframes:
                 url = f"{self.binance_api}/klines"
@@ -159,21 +160,29 @@ class MarketInfo:
                     if None in [ma_7, ma_25, ma_99]:
                         continue
                     
-                    # BULLISH trend kontrol (TAM ORİJİNAL)
                     current_price = closes[-1]
+                    
+                    # BULLISH trend kontrol
                     if ma_7 > ma_25 > ma_99 and current_price > ma_7:
                         bull_confirmations += 1
+                    # BEARISH trend kontrol
+                    elif ma_99 > ma_25 > ma_7 and current_price < ma_7:
+                        bear_confirmations += 1
             
-            # Orijinal formata uygun sonuç
+            # Sonuç formatla
             if bull_confirmations == 3:
-                return f"{bull_confirmations}/3 (Mükemmel)"
+                return {"type": "BULL", "count": f"{bull_confirmations}/3", "status": "Mükemmel", "bear_count": bear_confirmations}
+            elif bear_confirmations == 3:
+                return {"type": "BEAR", "count": f"{bear_confirmations}/3", "status": "Mükemmel", "bull_count": bull_confirmations}
             elif bull_confirmations >= 2:
-                return f"{bull_confirmations}/3 (İyi)"
+                return {"type": "BULL", "count": f"{bull_confirmations}/3", "status": "İyi", "bear_count": bear_confirmations}
+            elif bear_confirmations >= 2:
+                return {"type": "BEAR", "count": f"{bear_confirmations}/3", "status": "İyi", "bull_count": bull_confirmations}
             else:
-                return f"{bull_confirmations}/3 (Riskli)"
+                return {"type": "MIX", "count": f"{bull_confirmations}B-{bear_confirmations}Be/3", "status": "Karışık", "bull_count": bull_confirmations, "bear_count": bear_confirmations}
             
         except:
-            return "0/3 (Riskli)"
+            return {"type": "ERROR", "count": "0/3", "status": "Veri Yok", "bull_count": 0, "bear_count": 0}
 
     def calculate_rsi(self, prices, period=14):
         """RSI hesaplama"""
@@ -227,44 +236,64 @@ class MarketInfo:
         multi_tf_result = self.get_multi_tf_info()
         
         # Multi-TF durumuna göre emoji belirle
-        if "Mükemmel" in multi_tf_result:
-            multi_emoji = "✅"
-        elif "İyi" in multi_tf_result:
+        if multi_tf_result["status"] == "Mükemmel":
+            if multi_tf_result["type"] == "BULL":
+                multi_emoji = "🚀"
+            else:  # BEAR
+                multi_emoji = "🐻"
+        elif multi_tf_result["status"] == "İyi":
             multi_emoji = "⚠️"
         else:
             multi_emoji = "❌"
             
-        print(f"{multi_emoji} Multi-TF (30dk odak): {multi_tf_result}")
+        print(f"{multi_emoji} Multi-TF (30dk odak): {multi_tf_result['count']} ({multi_tf_result['status']} - {multi_tf_result['type']})")
         
-        # Telegram mesajı sadece şartları sağlıyorsa gönder
-        # Şart: Multi-TF 3/3 VE BTC Trend Tutarlılığı 75% ve üstü
-        multi_tf_count = int(multi_tf_result.split('/')[0])  # "3/3" -> 3
+        # Market Rejimi trend tespiti
+        regime_type = "BULL" if "BULL" in regime else "BEAR" if "BEAR" in regime else "RANGE"
         
-        if multi_tf_count == 3 and btc_consistency >= 75:
-            # Telegram mesajı oluştur
-            telegram_message = f"""🚀 <b>GÜÇLÜ MARKET SİNYALİ!</b>
+        # TELEGRAM MESAJI GÖNDERME LOGİĞİ
+        send_message = False
+        message_type = ""
+        
+        if multi_tf_result["type"] in ["BULL", "BEAR"] and multi_tf_result["status"] == "Mükemmel" and btc_consistency >= 75:
+            # GÜÇLÜ SİNYAL KONTROLÜ - SADECE UYUMLU DURUMLAR
+            if regime_type == multi_tf_result["type"]:
+                # Market rejimi ve Multi-TF uyumlu
+                send_message = True
+                message_type = f"GÜÇLÜ {multi_tf_result['type']} SİNYALİ"
+                message_icon = "🚀" if multi_tf_result['type'] == "BULL" else "🐻"
+                message_title = f"{message_icon} <b>{message_type}!</b>"
+            # ÇELİŞKİ DURUMU - MESAJ GÖNDERMEYİZ
+        
+        if send_message:
+            # Telegram mesajı oluştur - SADECE UYUMLU SİNYALLER
+            telegram_message = f"""{message_title}
 
 <b>MARKET REJIMİ:</b> ✅ Rejim: {regime}
 
 <b>DİĞER BİLGİLER:</b>
 {btc_emoji} <b>BTC Trend Tutarlılığı:</b> {btc_consistency}% ({btc_status})
-{multi_emoji} <b>Multi-TF (30dk odak):</b> {multi_tf_result}
+{multi_emoji} <b>Multi-TF (30dk odak):</b> {multi_tf_result['count']} ({multi_tf_result['status']} - {multi_tf_result['type']})
 
 ⏰ <b>Zaman:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
 🎯 <b>ŞARTLAR SAĞLANDI:</b>
-✅ Multi-TF: 3/3 Mükemmel
+✅ Multi-TF: {multi_tf_result['count']} {multi_tf_result['status']}
 ✅ BTC Tutarlılık: {btc_consistency}% (≥75%)
+✅ Market Uyumu: {regime_type} = {multi_tf_result['type']}
 
-🤖 <i>Güçlü market sinyali tespit edildi!</i>"""
+🤖 <i>Güçlü {multi_tf_result['type'].lower()} market sinyali tespit edildi!</i>"""
             
             # Telegram'a gönder
-            print("\n🚀 ŞARTLAR SAĞLANDI - Telegram mesajı gönderiliyor...")
+            print(f"\n{message_icon} {message_type} - Telegram mesajı gönderiliyor...")
             self.send_telegram_message(telegram_message)
         else:
             print(f"\n⏸️ Telegram mesajı gönderilmedi:")
-            print(f"   Multi-TF: {multi_tf_count}/3 (gerekli: 3/3)")
+            print(f"   Multi-TF: {multi_tf_result['count']} {multi_tf_result['status']} (gerekli: 3/3 Mükemmel)")
             print(f"   BTC Tutarlılık: {btc_consistency}% (gerekli: ≥75%)")
+            if multi_tf_result["type"] in ["BULL", "BEAR"]:
+                uyum_status = '✅ Uyumlu' if regime_type == multi_tf_result['type'] else '❌ Çelişki (mesaj gönderilmez)'
+                print(f"   Market Uyumu: {regime_type} vs {multi_tf_result['type']} ({uyum_status})")
 
 if __name__ == "__main__":
     market = MarketInfo()
