@@ -39,12 +39,12 @@ class MarketInfo:
     def get_btc_trend_consistency(self):
         """BTC trend tutarlılığını hesapla - TAM ORİJİNAL algoritma"""
         try:
-            # Son 30 dakika 1m verisi çek (orijinal gibi)
+            # CryptoCompare API - 30 dakika 1m verisi
             minutes = 30
-            url = f"{self.binance_api}/klines"
+            url = f"https://min-api.cryptocompare.com/data/v2/histominute"
             params = {
-                'symbol': 'BTCUSDT',
-                'interval': '1m',
+                'fsym': 'BTC',
+                'tsym': 'USDT', 
                 'limit': minutes
             }
             
@@ -52,16 +52,20 @@ class MarketInfo:
             if response.status_code != 200:
                 return 50
                 
-            klines = response.json()
+            data = response.json()
+            if 'Data' not in data or 'Data' not in data['Data']:
+                return 50
+                
+            klines = data['Data']['Data']
             if not klines or len(klines) < minutes:
                 return 50
             
-            # Her dakika için trend yönünü belirle (orijinal algoritma)
+            # Her dakika için trend yönünü belirle (CryptoCompare format)
             trends = []
             for i in range(len(klines) - 7):
-                recent_closes = [float(klines[j][4]) for j in range(i, i + 7)]
+                recent_closes = [float(klines[j]['close']) for j in range(i, i + 7)]
                 ma_7 = sum(recent_closes) / 7
-                current_close = float(klines[i + 6][4])
+                current_close = float(klines[i + 6]['close'])
                 
                 if current_close > ma_7:
                     trends.append('BULL')
@@ -95,18 +99,24 @@ class MarketInfo:
     def get_market_regime(self):
         """Market rejimini belirle - orijinal algoritma"""
         try:
-            # BTC 15m verisi çek (orijinal gibi)
-            url = f"{self.binance_api}/klines"
+            # CryptoCompare API - 15m verisi
+            url = f"https://min-api.cryptocompare.com/data/v2/histominute"
             params = {
-                'symbol': 'BTCUSDT',
-                'interval': '15m',
-                'limit': 100
+                'fsym': 'BTC',
+                'tsym': 'USDT',
+                'limit': 100,
+                'aggregate': 15
             }
             
             response = requests.get(url, params=params, timeout=10)
             if response.status_code == 200:
                 data = response.json()
-                closes = [float(k[4]) for k in data]
+                
+                if 'Data' not in data or 'Data' not in data['Data']:
+                    return "BEAR TREND (BTC MA99>MA25>MA7 - Düşüş trendi)"
+                    
+                candles = data['Data']['Data']
+                closes = [float(candle['close']) for candle in candles]
                 
                 # MA'ları hesapla (orijinal algoritma)
                 ma_7 = self.calculate_ma(closes, 7)
@@ -138,23 +148,35 @@ class MarketInfo:
             
             for tf in timeframes:
                 try:
-                    url = f"{self.binance_api}/klines"
-                    params = {
-                        'symbol': 'BTCUSDT',
-                        'interval': tf,
-                        'limit': 100
-                    }
+                    # CryptoCompare API - coğrafi kısıt yok
+                    limit_map = {'5m': 100, '30m': 100, '1h': 100}
+                    url = f"https://min-api.cryptocompare.com/data/v2/histominute"
+                    
+                    if tf == '5m':
+                        params = {'fsym': 'BTC', 'tsym': 'USDT', 'limit': 500, 'aggregate': 5}
+                    elif tf == '30m':
+                        params = {'fsym': 'BTC', 'tsym': 'USDT', 'limit': 100, 'aggregate': 30}
+                    elif tf == '1h':
+                        url = f"https://min-api.cryptocompare.com/data/v2/histohour"
+                        params = {'fsym': 'BTC', 'tsym': 'USDT', 'limit': 100}
                     
                     response = requests.get(url, params=params, timeout=10)
                     
                     if response.status_code == 200:
                         data = response.json()
                         
-                        if len(data) < 99:
-                            print(f"⚠️ {tf}: Yetersiz veri ({len(data)} < 99)")
+                        # CryptoCompare response format
+                        if 'Data' not in data or 'Data' not in data['Data']:
+                            print(f"⚠️ {tf}: CryptoCompare veri formatı hatası")
                             continue
                             
-                        closes = [float(k[4]) for k in data]
+                        candles = data['Data']['Data']
+                        if len(candles) < 99:
+                            print(f"⚠️ {tf}: Yetersiz veri ({len(candles)} < 99)")
+                            continue
+                            
+                        # CryptoCompare'de close price 'close' alanında
+                        closes = [float(candle['close']) for candle in candles]
                         
                         # MA'ları hesapla
                         ma_7 = self.calculate_ma(closes, 7)
