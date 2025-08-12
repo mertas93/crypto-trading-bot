@@ -137,37 +137,54 @@ class MarketInfo:
             bear_confirmations = 0
             
             for tf in timeframes:
-                url = f"{self.binance_api}/klines"
-                params = {
-                    'symbol': 'BTCUSDT',
-                    'interval': tf,
-                    'limit': 100
-                }
-                
-                response = requests.get(url, params=params, timeout=10)
-                if response.status_code == 200:
-                    data = response.json()
-                    if len(data) < 99:
-                        continue
+                try:
+                    url = f"{self.binance_api}/klines"
+                    params = {
+                        'symbol': 'BTCUSDT',
+                        'interval': tf,
+                        'limit': 100
+                    }
+                    
+                    response = requests.get(url, params=params, timeout=10)
+                    
+                    if response.status_code == 200:
+                        data = response.json()
                         
-                    closes = [float(k[4]) for k in data]
+                        if len(data) < 99:
+                            print(f"⚠️ {tf}: Yetersiz veri ({len(data)} < 99)")
+                            continue
+                            
+                        closes = [float(k[4]) for k in data]
+                        
+                        # MA'ları hesapla
+                        ma_7 = self.calculate_ma(closes, 7)
+                        ma_25 = self.calculate_ma(closes, 25)
+                        ma_99 = self.calculate_ma(closes, 99)
+                        
+                        if None in [ma_7, ma_25, ma_99]:
+                            print(f"⚠️ {tf}: MA hesaplama hatası")
+                            continue
+                        
+                        current_price = closes[-1]
+                        
+                        # BULLISH trend kontrol
+                        if ma_7 > ma_25 > ma_99 and current_price > ma_7:
+                            bull_confirmations += 1
+                            print(f"✅ {tf}: BULL confirmation")
+                        # BEARISH trend kontrol
+                        elif ma_99 > ma_25 > ma_7 and current_price < ma_7:
+                            bear_confirmations += 1
+                            print(f"✅ {tf}: BEAR confirmation")
+                        else:
+                            print(f"➖ {tf}: Range market")
+                    else:
+                        print(f"❌ {tf}: API hatası ({response.status_code})")
                     
-                    # MA'ları hesapla
-                    ma_7 = self.calculate_ma(closes, 7)
-                    ma_25 = self.calculate_ma(closes, 25)
-                    ma_99 = self.calculate_ma(closes, 99)
+                    time.sleep(0.5)  # Rate limit önlemi
                     
-                    if None in [ma_7, ma_25, ma_99]:
-                        continue
-                    
-                    current_price = closes[-1]
-                    
-                    # BULLISH trend kontrol
-                    if ma_7 > ma_25 > ma_99 and current_price > ma_7:
-                        bull_confirmations += 1
-                    # BEARISH trend kontrol
-                    elif ma_99 > ma_25 > ma_7 and current_price < ma_7:
-                        bear_confirmations += 1
+                except Exception as e:
+                    print(f"❌ {tf}: {str(e)[:50]}")
+                    continue
             
             # Sonuç formatla
             if bull_confirmations == 3:
