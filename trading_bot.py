@@ -155,7 +155,8 @@ class MarketInfo:
                     if tf == '5m':
                         params = {'fsym': 'BTC', 'tsym': 'USDT', 'limit': 500, 'aggregate': 5}
                     elif tf == '30m':
-                        params = {'fsym': 'BTC', 'tsym': 'USDT', 'limit': 100, 'aggregate': 30}
+                        # 30m için 200 limit (200*30m = 4000 dakika veri)
+                        params = {'fsym': 'BTC', 'tsym': 'USDT', 'limit': 200, 'aggregate': 30}
                     elif tf == '1h':
                         url = f"https://min-api.cryptocompare.com/data/v2/histohour"
                         params = {'fsym': 'BTC', 'tsym': 'USDT', 'limit': 100}
@@ -171,17 +172,23 @@ class MarketInfo:
                             continue
                             
                         candles = data['Data']['Data']
-                        if len(candles) < 99:
-                            print(f"⚠️ {tf}: Yetersiz veri ({len(candles)} < 99)")
+                        min_required = 99 if tf in ['5m', '1h'] else 50  # 30m için daha esnek
+                        if len(candles) < min_required:
+                            print(f"⚠️ {tf}: Yetersiz veri ({len(candles)} < {min_required})")
                             continue
                             
                         # CryptoCompare'de close price 'close' alanında
                         closes = [float(candle['close']) for candle in candles]
                         
-                        # MA'ları hesapla
-                        ma_7 = self.calculate_ma(closes, 7)
-                        ma_25 = self.calculate_ma(closes, 25)
-                        ma_99 = self.calculate_ma(closes, 99)
+                        # MA'ları hesapla - 30m için daha kısa MA'lar
+                        if tf == '30m' and len(closes) < 99:
+                            ma_7 = self.calculate_ma(closes, min(7, len(closes)//3))
+                            ma_25 = self.calculate_ma(closes, min(25, len(closes)//2))  
+                            ma_99 = self.calculate_ma(closes, min(50, len(closes)-1))
+                        else:
+                            ma_7 = self.calculate_ma(closes, 7)
+                            ma_25 = self.calculate_ma(closes, 25)
+                            ma_99 = self.calculate_ma(closes, 99)
                         
                         if None in [ma_7, ma_25, ma_99]:
                             print(f"⚠️ {tf}: MA hesaplama hatası")
